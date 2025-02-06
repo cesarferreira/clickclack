@@ -2,5 +2,37 @@
 name = "clickclack"
 version = "0.1.0"
 edition = "2021"
+description = "A mechanical keyboard sound simulator for macOS"
+authors = ["Your Name <your.email@example.com>"]
 
 [dependencies]
+# Audio synthesis and playback
+cpal = "0.15.2"
+rodio = "0.17.3"
+
+# GUI and system tray
+tao = "0.20.0"
+tray-icon = "0.9.0"
+image = "0.24.7"
+
+# Event handling
+rdev = "0.5.3"  # For global keyboard events
+once_cell = "1.19.0"
+parking_lot = "0.12.1"
+
+# Error handling and utilities
+anyhow = "1.0.79"
+log = "0.4.20"
+env_logger = "0.10.1"
+
+[build-dependencies]
+embed-resource = "2.4.0"  # For embedding icons on Windows
+
+[package.metadata.bundle]
+name = "ClickClack"
+identifier = "com.clickclack.app"
+icon = ["assets/icon.png"]
+version = "0.1.0"
+copyright = "Copyright (c) 2024. All rights reserved."
+category = "public.app-category.utilities"
+short_description = "Mechanical keyboard sound simulator"
