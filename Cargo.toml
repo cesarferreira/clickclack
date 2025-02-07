@@ -25,6 +25,10 @@ anyhow = "1.0.79"
 log = "0.4.20"
 env_logger = "0.10.1"
 
+cocoa = "0.24"
+objc = "0.2"
+
+
 [build-dependencies]
 embed-resource = "2.4.0"  # For embedding icons on Windows
 
@@ -36,3 +40,4 @@ version = "0.1.0"
 copyright = "Copyright (c) 2024. All rights reserved."
 category = "public.app-category.utilities"
 short_description = "Mechanical keyboard sound simulator"
+

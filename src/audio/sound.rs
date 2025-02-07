@@ -5,13 +5,11 @@ use std::f32::consts::PI;
 use std::sync::Arc;
 use std::time::Instant;
 use parking_lot::Mutex;
-
 pub struct SoundEngine {
     _stream: Stream,
-    sample_rate: f32,
+    _sample_rate: f32,
     last_click: Arc<Mutex<Option<Instant>>>,
 }
-
 // Implement Send and Sync explicitly since we know our implementation is thread-safe
 unsafe impl Send for SoundEngine {}
 unsafe impl Sync for SoundEngine {}
@@ -37,7 +35,7 @@ impl SoundEngine {
 
         Ok(Self {
             _stream: stream,
-            sample_rate,
+            _sample_rate: sample_rate,
             last_click,
         })
     }

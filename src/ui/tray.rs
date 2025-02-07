@@ -8,7 +8,6 @@ use std::thread;
 use log::info;
 
 const TRAY_ICON: &[u8] = include_bytes!("../../assets/icon.png");
-
 pub struct TrayIcon {
     _tray_icon: tray_icon::TrayIcon,
     _menu: Arc<Menu>,
@@ -40,7 +39,7 @@ impl TrayIcon {
         let mut menu_ids = Vec::new();
         for &(label, value) in menu_configs.iter() {
             let item = MenuItem::new(String::from(label), true, None);
-            let id = item.id().0;
+            let id = item.id().0.clone();
             menu.append(&item)?;
             items.push((item, value));
             menu_ids.push((id, value));
@@ -49,6 +48,8 @@ impl TrayIcon {
         // Create the tray icon
         let icon = load_icon()?;
         let menu = Arc::new(menu);
+        let menu_ids = Arc::new(menu_ids);
+
         let tray_icon = TrayIconBuilder::new()
             .with_menu(Box::new(menu.as_ref().clone()))
             .with_icon(icon)
@@ -56,16 +57,17 @@ impl TrayIcon {
             .build()?;
 
         // Spawn a thread to handle menu events
+        let menu_ids_clone = Arc::clone(&menu_ids);
         thread::spawn(move || {
             let events = MenuEvent::receiver();
             for event in events {
                 let mut app_state = crate::APP_STATE.lock();
                 
-                if let Some((_, value)) = menu_ids.iter().find(|(id, _)| *id == event.id.0) {
+                if let Some((_, value)) = menu_ids_clone.iter().find(|(id, _)| *id == event.id.0) {
                     match value {
                         None => {
                             // Handle toggle and quit
-                            if event.id.0 == menu_ids[0].0 {
+                            if event.id.0 == menu_ids_clone[0].0 {
                                 app_state.enabled = !app_state.enabled;
                                 info!("Sound {}", if app_state.enabled { "enabled" } else { "disabled" });
                             } else {
@@ -101,11 +103,11 @@ impl TrayIcon {
 
 fn load_icon() -> Result<Icon> {
     let (icon_rgba, icon_width, icon_height) = {
-        let image = image::load_from_memory(TRAY_ICON)?.into_rgba8();
+        let image = image::load_from_memory_with_format(TRAY_ICON, image::ImageFormat::Png)?.into_rgba8();
         let (width, height) = image.dimensions();
         let rgba = image.into_raw();
         (rgba, width, height)
     };
 
     Ok(Icon::from_rgba(icon_rgba, icon_width, icon_height)?)
-} 
+}

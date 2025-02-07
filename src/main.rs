@@ -1,9 +1,18 @@
+#[cfg(target_os = "macos")]
+use objc::{msg_send, sel, sel_impl};
+#[cfg(target_os = "macos")]
+use cocoa::base::{id, nil, NO, YES};
+#[cfg(target_os = "macos")]
+use cocoa::appkit::{NSApp, NSApplication, NSApplicationActivationPolicy, NSApplicationActivationPolicyAccessory};
+#[cfg(target_os = "macos")]
+use cocoa::foundation::NSAutoreleasePool;
+
 mod audio;
 mod input;
 mod ui;
 
 use anyhow::Result;
-use log::{error, info};
+use log::info;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -25,6 +34,13 @@ pub struct AppState {
 }
 
 fn main() -> Result<()> {
+    #[cfg(target_os = "macos")]
+    unsafe {
+        let _pool = NSAutoreleasePool::new(nil);
+        let app = NSApplication::sharedApplication(nil);
+        app.setActivationPolicy_(NSApplicationActivationPolicyAccessory);
+    }
+
     env_logger::init();
     info!("Starting ClickClack...");
 

@@ -239,11 +239,13 @@ name = "clickclack"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "cocoa 0.24.1",
  "cpal",
  "embed-resource",
  "env_logger",
  "image",
  "log",
+ "objc",
  "once_cell",
  "parking_lot",
  "rdev",
