@@ -56,5 +56,12 @@ fn main() -> Result<()> {
     let tray = ui::TrayIcon::new()?;
     tray.run()?;
 
+    // Keep the main thread running
+    #[cfg(target_os = "macos")]
+    unsafe {
+        let app = NSApplication::sharedApplication(nil);
+        app.run();
+    }
+
     Ok(())
 }
