@@ -8,6 +8,7 @@ use cocoa::foundation::NSAutoreleasePool;
 mod audio;
 mod input;
 mod ui;
+mod config;
 
 use anyhow::Result;
 use log::info;
@@ -16,32 +17,11 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 use std::io::Write;
 
-static APP_STATE: Lazy<Arc<Mutex<AppState>>> = Lazy::new(|| {
-    Arc::new(Mutex::new(AppState {
-        enabled: true,
-        volume: 1.0,
-        keyboard_profile: String::from("Kandas-Woods-v1"),
-        frequency: 500.0,
-        decay: 30.0,
-    }))
+static APP_STATE: Lazy<Arc<Mutex<config::Config>>> = Lazy::new(|| {
+    Arc::new(Mutex::new(config::Config::load().unwrap_or_default()))
 });
 
-pub struct AppState {
-    enabled: bool,
-    volume: f32,
-    keyboard_profile: String,
-    frequency: f32,
-    decay: f32,
-}
-
 fn main() -> Result<()> {
-    #[cfg(target_os = "macos")]
-    unsafe {
-        let _pool = NSAutoreleasePool::new(nil);
-        let app = NSApplication::sharedApplication(nil);
-        app.setActivationPolicy_(NSApplicationActivationPolicyAccessory);
-    }
-
     // Initialize logging with info level by default
     env_logger::Builder::from_env(env_logger::Env::default()
         .filter_or("RUST_LOG", "info")
@@ -57,23 +37,36 @@ fn main() -> Result<()> {
         .init();
     info!("Starting ClickClack...");
 
-    // Initialize the sound system
-    let sound_engine = audio::SoundEngine::new()?;
-    let sound_engine = Arc::new(sound_engine);
+    #[cfg(target_os = "macos")]
+    unsafe {
+        let _pool = NSAutoreleasePool::new(nil);
+        let app = NSApplication::sharedApplication(nil);
+        app.setActivationPolicy_(NSApplicationActivationPolicyAccessory);
+    }
 
-    // Start keyboard listener
+    // Initialize the sound system
+    let sound_engine = Arc::new(audio::SoundEngine::new()?);
+    info!("Sound engine initialized");
+
+    // Start keyboard listener in a separate thread
     let keyboard_handler = input::KeyboardHandler::new(sound_engine.clone())?;
     keyboard_handler.start()?;
+    info!("Keyboard handler started");
 
-    // Create and run the tray icon
-    let tray = ui::TrayIcon::new()?;
-    tray.run()?;
-
-    // Keep the main thread running
+    // Create the tray icon
+    let _tray = ui::TrayIcon::new()?;
+    info!("Tray icon created");
+    
+    // Run the main event loop
     #[cfg(target_os = "macos")]
     unsafe {
         let app = NSApplication::sharedApplication(nil);
         app.run();
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    loop {
+        std::thread::sleep(std::time::Duration::from_millis(100));
     }
 
     Ok(())
