@@ -1,12 +1,12 @@
 use anyhow::Result;
-use cocoa::base::{id, nil, YES, NO};
-use cocoa::foundation::{NSString, NSAutoreleasePool, NSSize};
+use cocoa::base::{id, nil, NO};
+use cocoa::foundation::{NSString, NSAutoreleasePool};
 use cocoa::appkit::{NSStatusBar, NSMenu, NSMenuItem};
 use objc::runtime::{Object, Class};
 use objc::{msg_send, sel, sel_impl, class};
 use objc::runtime::Sel;
 use std::fs;
-use log::{info, error};
+use log::info;
 
 const VOLUME_LEVELS: &[(f32, &str)] = &[
     (1.0, "100%"),
