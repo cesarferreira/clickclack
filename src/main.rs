@@ -1,9 +1,7 @@
 #[cfg(target_os = "macos")]
-use objc::{msg_send, sel, sel_impl};
+use cocoa::base::nil;
 #[cfg(target_os = "macos")]
-use cocoa::base::{id, nil, NO, YES};
-#[cfg(target_os = "macos")]
-use cocoa::appkit::{NSApp, NSApplication, NSApplicationActivationPolicy, NSApplicationActivationPolicyAccessory};
+use cocoa::appkit::{NSApplication, NSApplicationActivationPolicyAccessory};
 #[cfg(target_os = "macos")]
 use cocoa::foundation::NSAutoreleasePool;
 

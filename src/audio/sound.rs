@@ -5,11 +5,7 @@ use rdev::Key;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
-use std::sync::Arc;
-use parking_lot::Mutex;
 use std::sync::mpsc;
-use env_logger;
-use std::io::Write;
 
 pub struct SoundEngine {
     _stream: OutputStream,
