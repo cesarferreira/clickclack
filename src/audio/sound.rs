@@ -1,5 +1,5 @@
 use anyhow::Result;
-use log::error;
+use log::{error, info};
 use rodio::{Decoder, OutputStream, Sink};
 use rdev::Key;
 use std::fs::File;
@@ -10,14 +10,14 @@ use parking_lot::Mutex;
 use std::sync::mpsc;
 
 pub struct SoundEngine {
-    _stream: OutputStream,  // Keep stream alive but don't share it
+    _stream: OutputStream,
     stream_handle: rodio::OutputStreamHandle,
-    sinks: Arc<Mutex<Vec<Sink>>>,
     sender: mpsc::Sender<SoundEvent>,
 }
 
 pub struct SoundEvent {
     key: Option<Key>,
+    is_press: bool,
     volume: f32,
     profile: String,
 }
@@ -42,12 +42,11 @@ impl SoundEngine {
         Ok(Self {
             _stream: stream,
             stream_handle,
-            sinks: Arc::new(Mutex::new(Vec::new())),
             sender,
         })
     }
 
-    pub fn play_click(&self, key: Option<Key>) {
+    pub fn play_sound(&self, key: Option<Key>, is_press: bool) {
         let app_state = crate::APP_STATE.lock();
         if !app_state.enabled {
             return;
@@ -56,6 +55,7 @@ impl SoundEngine {
         // Create event with current state
         let event = SoundEvent {
             key,
+            is_press,
             volume: app_state.volume,
             profile: app_state.keyboard_profile.clone(),
         };
@@ -65,11 +65,13 @@ impl SoundEngine {
     }
 
     fn handle_sound_event(event: SoundEvent, stream_handle: &rodio::OutputStreamHandle) {
-        // Determine which sound file to play based on the key
-        let sound_file = match event.key {
-            Some(Key::Return) => "down_enter.mp3".to_string(),
-            Some(Key::Space) => "down_space.mp3".to_string(),
-            Some(_) => {
+        // Determine which sound file to play based on the key and event type
+        let sound_file = match (event.key, event.is_press) {
+            (Some(Key::Return), true) => "down_enter.mp3".to_string(),
+            (Some(Key::Return), false) => "up_enter.mp3".to_string(),
+            (Some(Key::Space), true) => "down_space.mp3".to_string(),
+            (Some(Key::Space), false) => "up_space.mp3".to_string(),
+            (Some(_), true) => {
                 // Use different down sounds for variety
                 let num = (std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -77,8 +79,17 @@ impl SoundEngine {
                     .as_nanos() % 7 + 1) as u8;
                 format!("down{}.mp3", num)
             }
-            None => "down1.mp3".to_string(),
+            (Some(_), false) => {
+                let num = (std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos() % 7 + 1) as u8;
+                format!("up{}.mp3", num)
+            }
+            (None, _) => "down1.mp3".to_string(),
         };
+
+        info!("Playing sound: {}", sound_file);
 
         let path = PathBuf::from("assets")
             .join("keyboards")
@@ -109,6 +120,7 @@ impl SoundEngine {
         let app_state = crate::APP_STATE.lock();
         let event = SoundEvent {
             key: None,
+            is_press: true,
             volume: app_state.volume,
             profile: app_state.keyboard_profile.clone(),
         };
@@ -119,8 +131,6 @@ impl SoundEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
-    use std::path::Path;
 
     #[test]
     fn test_sound_engine_creation() {
@@ -130,15 +140,9 @@ mod tests {
     #[test]
     fn test_sound_file_selection() {
         let engine = SoundEngine::new().unwrap();
-        
-        // Test with test sound instead of real files
         assert!(engine.play_test_sound());
-        
-        // Check that sink was created
-        {
-            let sinks = engine.sinks.lock();
-            assert!(!sinks.is_empty());
-        }
+        // Give some time for the sound to be processed
+        std::thread::sleep(std::time::Duration::from_millis(100));
     }
 
     #[test]
@@ -149,12 +153,8 @@ mod tests {
         for _ in 0..3 {
             assert!(engine.play_test_sound());
         }
-
-        // Check that multiple sinks are created
-        {
-            let sinks = engine.sinks.lock();
-            assert!(sinks.len() > 1);
-        }
+        // Give some time for the sounds to be processed
+        std::thread::sleep(std::time::Duration::from_millis(100));
     }
 
     #[test]
@@ -164,7 +164,6 @@ mod tests {
             let mut app_state = crate::APP_STATE.lock();
             app_state.volume = 0.5;
         }
-
         assert!(engine.play_test_sound());
     }
 } 

@@ -30,17 +30,26 @@ impl KeyboardHandler {
     }
 
     fn callback(event: Event, sound_engine: &SoundEngine) {
-        if let EventType::KeyPress(key) = event.event_type {
-            info!("Clicked on key {:?}", key);
-            // Only hold the lock long enough to check if enabled
-            let enabled = {
-                let app_state = crate::APP_STATE.lock();
-                app_state.enabled
-            };
-            
-            if enabled {
-                sound_engine.play_click(Some(key));
+        let (is_press, key) = match event.event_type {
+            EventType::KeyPress(key) => {
+                info!("Key pressed: {:?}", key);
+                (true, Some(key))
             }
+            EventType::KeyRelease(key) => {
+                info!("Key released: {:?}", key);
+                (false, Some(key))
+            }
+            _ => return,
+        };
+
+        // Only hold the lock long enough to check if enabled
+        let enabled = {
+            let app_state = crate::APP_STATE.lock();
+            app_state.enabled
+        };
+        
+        if enabled {
+            sound_engine.play_sound(key, is_press);
         }
     }
 }
@@ -50,9 +59,13 @@ mod tests {
     use super::*;
     use std::thread;
 
-    fn create_test_event(key: rdev::Key) -> Event {
+    fn create_test_event(key: rdev::Key, is_press: bool) -> Event {
         Event {
-            event_type: EventType::KeyPress(key),
+            event_type: if is_press {
+                EventType::KeyPress(key)
+            } else {
+                EventType::KeyRelease(key)
+            },
             name: None,
             time: std::time::SystemTime::now(),
         }
@@ -81,10 +94,13 @@ mod tests {
             app_state.enabled = true;
         }
 
-        // Test callback with different keys
-        KeyboardHandler::callback(create_test_event(rdev::Key::KeyA), &sound_engine);
-        KeyboardHandler::callback(create_test_event(rdev::Key::Space), &sound_engine);
-        KeyboardHandler::callback(create_test_event(rdev::Key::Return), &sound_engine);
+        // Test callback with different keys (press and release)
+        KeyboardHandler::callback(create_test_event(rdev::Key::KeyA, true), &sound_engine);
+        KeyboardHandler::callback(create_test_event(rdev::Key::KeyA, false), &sound_engine);
+        KeyboardHandler::callback(create_test_event(rdev::Key::Space, true), &sound_engine);
+        KeyboardHandler::callback(create_test_event(rdev::Key::Space, false), &sound_engine);
+        KeyboardHandler::callback(create_test_event(rdev::Key::Return, true), &sound_engine);
+        KeyboardHandler::callback(create_test_event(rdev::Key::Return, false), &sound_engine);
     }
 
     #[test]
@@ -98,7 +114,8 @@ mod tests {
         }
 
         // Test callback while disabled
-        KeyboardHandler::callback(create_test_event(rdev::Key::KeyA), &sound_engine);
+        KeyboardHandler::callback(create_test_event(rdev::Key::KeyA, true), &sound_engine);
+        KeyboardHandler::callback(create_test_event(rdev::Key::KeyA, false), &sound_engine);
     }
 
     #[test]
@@ -113,7 +130,8 @@ mod tests {
         let threads: Vec<_> = (0..3).map(|_| {
             let engine = sound_engine.clone();
             thread::spawn(move || {
-                KeyboardHandler::callback(create_test_event(rdev::Key::KeyA), &engine);
+                KeyboardHandler::callback(create_test_event(rdev::Key::KeyA, true), &engine);
+                KeyboardHandler::callback(create_test_event(rdev::Key::KeyA, false), &engine);
             })
         }).collect();
 
