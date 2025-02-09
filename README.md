@@ -24,7 +24,7 @@ ClickClack is a macOS application that simulates the satisfying sound of a mecha
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/clickclack.git
+git clone https://github.com/cesarferreira/clickclack.git
 cd clickclack
 ```
 
