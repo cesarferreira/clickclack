@@ -1,4 +1,5 @@
-# 🎹 ClickClack: Turn Your Boring Keyboard into a Symphony of Satisfaction!
+# 🎹 ClickClack
+> Turn Your Boring Keyboard into a Symphony of Satisfaction!
 
 Ever wished your keyboard sounded as fancy as those $200 mechanical keyboards your coworkers won't shut up about? Well, wish no more! ClickClack brings that sweet, sweet mechanical keyboard ASMR to your fingertips without breaking the bank! 
 
