@@ -8,6 +8,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use parking_lot::Mutex;
 use std::sync::mpsc;
+use env_logger;
+use std::io::Write;
 
 pub struct SoundEngine {
     _stream: OutputStream,
@@ -64,6 +66,34 @@ impl SoundEngine {
         let _ = self.sender.send(event);
     }
 
+    fn get_sound_number_for_key(key: &Key) -> u8 {
+        // Map specific keys to consistent sound numbers
+        match key {
+            // Map letter keys
+            Key::KeyA | Key::KeyQ | Key::KeyZ | Key::Num1 => 1,
+            Key::KeyS | Key::KeyW | Key::KeyX | Key::Num2 => 2,
+            Key::KeyD | Key::KeyE | Key::KeyC | Key::Num3 => 3,
+            Key::KeyF | Key::KeyR | Key::KeyV | Key::Num4 => 4,
+            Key::KeyG | Key::KeyT | Key::KeyB | Key::Num5 => 5,
+            Key::KeyH | Key::KeyY | Key::KeyN | Key::Num6 => 6,
+            Key::KeyJ | Key::KeyU | Key::KeyM | Key::Num7 => 7,
+            
+            // Map modifier keys to deeper sounds
+            Key::ShiftLeft | Key::ShiftRight | Key::CapsLock => 1,
+            Key::ControlLeft | Key::ControlRight | Key::Alt => 2,
+            Key::MetaLeft | Key::MetaRight => 3,
+            
+            // Map remaining keys based on their pattern
+            Key::KeyK | Key::KeyI | Key::Comma => 1,
+            Key::KeyL | Key::KeyO | Key::Dot => 2,
+            Key::SemiColon | Key::KeyP | Key::Slash => 3,
+            Key::Quote | Key::LeftBracket | Key::Num8 => 4,
+            Key::BackSlash | Key::RightBracket | Key::Num9 => 5,
+            Key::Tab | Key::Num0 | Key::Equal => 6,
+            _ => 7  // Any other keys
+        }
+    }
+
     fn handle_sound_event(event: SoundEvent, stream_handle: &rodio::OutputStreamHandle) {
         // Determine which sound file to play based on the key and event type
         let sound_file = match (event.key, event.is_press) {
@@ -71,25 +101,18 @@ impl SoundEngine {
             (Some(Key::Return), false) => "up_enter.mp3".to_string(),
             (Some(Key::Space), true) => "down_space.mp3".to_string(),
             (Some(Key::Space), false) => "up_space.mp3".to_string(),
-            (Some(_), true) => {
-                // Use different down sounds for variety
-                let num = (std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_nanos() % 7 + 1) as u8;
+            (Some(key), true) => {
+                let num = Self::get_sound_number_for_key(&key);
                 format!("down{}.mp3", num)
             }
-            (Some(_), false) => {
-                let num = (std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_nanos() % 7 + 1) as u8;
+            (Some(key), false) => {
+                let num = Self::get_sound_number_for_key(&key);
                 format!("up{}.mp3", num)
             }
             (None, _) => "down1.mp3".to_string(),
         };
 
-        info!("Playing sound: {}", sound_file);
+        info!("Key sound: {}", sound_file);
 
         let path = PathBuf::from("assets")
             .join("keyboards")

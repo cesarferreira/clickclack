@@ -16,6 +16,7 @@ use log::info;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use std::sync::Arc;
+use std::io::Write;
 
 static APP_STATE: Lazy<Arc<Mutex<AppState>>> = Lazy::new(|| {
     Arc::new(Mutex::new(AppState {
@@ -44,7 +45,17 @@ fn main() -> Result<()> {
     }
 
     // Initialize logging with info level by default
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+    env_logger::Builder::from_env(env_logger::Env::default()
+        .filter_or("RUST_LOG", "info")
+        .filter_or("symphonia", "error"))
+        .format(|buf, record| {
+            // Only show our application logs
+            if !record.target().starts_with("symphonia") {
+                writeln!(buf, "[{}] {}", record.level(), record.args())
+            } else {
+                Ok(())
+            }
+        })
         .init();
     info!("Starting ClickClack...");
 
