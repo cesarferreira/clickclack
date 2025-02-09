@@ -11,7 +11,7 @@ mod ui;
 mod config;
 
 use anyhow::Result;
-use log::info;
+use log::{info, error};
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -22,17 +22,11 @@ static APP_STATE: Lazy<Arc<Mutex<config::Config>>> = Lazy::new(|| {
 });
 
 fn main() -> Result<()> {
-    // Initialize logging with info level by default
+    // Initialize logging with debug level
     env_logger::Builder::from_env(env_logger::Env::default()
-        .filter_or("RUST_LOG", "info")
-        .filter_or("symphonia", "error"))
+        .filter_or("RUST_LOG", "debug"))
         .format(|buf, record| {
-            // Only show our application logs
-            if !record.target().starts_with("symphonia") {
-                writeln!(buf, "[{}] {}", record.level(), record.args())
-            } else {
-                Ok(())
-            }
+            writeln!(buf, "[{}] {}", record.level(), record.args())
         })
         .init();
     info!("Starting ClickClack...");
@@ -43,6 +37,13 @@ fn main() -> Result<()> {
         let app = NSApplication::sharedApplication(nil);
         app.setActivationPolicy_(NSApplicationActivationPolicyAccessory);
     }
+
+    // Initialize assets
+    if let Err(e) = ui::tray::ensure_assets_exist() {
+        error!("Failed to initialize assets: {}", e);
+        return Err(anyhow::anyhow!("Failed to initialize assets: {}", e));
+    }
+    info!("Assets initialized successfully");
 
     // Initialize the sound system
     let sound_engine = Arc::new(audio::SoundEngine::new()?);

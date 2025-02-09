@@ -8,7 +8,7 @@ use objc::runtime::Sel;
 use std::fs;
 use std::path::PathBuf;
 use log::{info, debug, error};
-use std::io::Cursor;
+use std::io::{self, Read, Cursor};
 
 const STATUS_ITEM_LENGTH: f64 = -1.0;
 
@@ -358,53 +358,94 @@ unsafe fn get_menu_item_for_action(target: &Object, action: &str) -> Option<id> 
     None
 }
 
-fn ensure_assets_exist() -> std::io::Result<()> {
+pub fn ensure_assets_exist() -> std::io::Result<()> {
+    info!("Starting asset initialization...");
+    
     let config_dir = dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("~/.config"))
         .join("clickclack");
+    debug!("Config directory path: {:?}", config_dir);
     
     let keyboards_dir = config_dir.join("keyboards");
+    debug!("Checking for keyboards directory at: {:?}", keyboards_dir);
+    debug!("Keyboards directory exists: {}", keyboards_dir.exists());
     
     if !keyboards_dir.exists() {
         info!("Keyboards directory not found, downloading assets...");
         fs::create_dir_all(&config_dir)?;
+        debug!("Created config directory at: {:?}", config_dir);
         
         // Download the zip file
         let url = "https://github.com/cesarferreira/clickclack/raw/refs/heads/main/assets/keyboards.zip";
-        let response = ureq::get(url)
-            .call()
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        info!("Downloading assets from: {}", url);
+        
+        let response = match ureq::get(url).call() {
+            Ok(resp) => resp,
+            Err(e) => {
+                error!("Failed to download assets: {}", e);
+                return Err(io::Error::new(io::ErrorKind::Other, e.to_string()));
+            }
+        };
+        debug!("Download response received");
         
         let mut bytes: Vec<u8> = Vec::new();
-        response.into_reader()
-            .read_to_end(&mut bytes)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        match response.into_reader().read_to_end(&mut bytes) {
+            Ok(_) => debug!("Downloaded {} bytes", bytes.len()),
+            Err(e) => {
+                error!("Failed to read response: {}", e);
+                return Err(io::Error::new(io::ErrorKind::Other, e.to_string()));
+            }
+        }
         
         // Extract the zip file
         let cursor = Cursor::new(bytes);
-        let mut archive = zip::ZipArchive::new(cursor)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        let mut archive = match zip::ZipArchive::new(cursor) {
+            Ok(archive) => {
+                debug!("Successfully created zip archive with {} files", archive.len());
+                archive
+            },
+            Err(e) => {
+                error!("Failed to create zip archive: {}", e);
+                return Err(io::Error::new(io::ErrorKind::Other, e.to_string()));
+            }
+        };
         
         for i in 0..archive.len() {
-            let mut file = archive.by_index(i)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
-            
+            let mut file = archive.by_index(i)?;
             let outpath = config_dir.join(file.name());
+            debug!("Extracting file to: {:?}", outpath);
             
             if file.name().ends_with('/') {
                 fs::create_dir_all(&outpath)?;
+                debug!("Created directory: {:?}", outpath);
             } else {
                 if let Some(p) = outpath.parent() {
                     fs::create_dir_all(p)?;
+                    debug!("Created parent directory: {:?}", p);
                 }
                 let mut outfile = fs::File::create(&outpath)?;
                 std::io::copy(&mut file, &mut outfile)?;
+                debug!("Extracted file: {:?}", outpath);
             }
         }
         
         info!("Assets downloaded and extracted successfully");
+    } else {
+        debug!("Keyboards directory already exists at: {:?}", keyboards_dir);
+        
+        // Check if the directory has content
+        let entries = fs::read_dir(&keyboards_dir)?;
+        let count = entries.count();
+        debug!("Found {} entries in keyboards directory", count);
+        
+        if count == 0 {
+            info!("Keyboards directory is empty, removing and recreating...");
+            fs::remove_dir(&keyboards_dir)?;
+            return ensure_assets_exist();
+        }
     }
     
+    info!("Asset initialization complete");
     Ok(())
 }
 
