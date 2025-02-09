@@ -3,7 +3,11 @@ name = "clickclack"
 version = "0.1.0"
 edition = "2021"
 description = "A mechanical keyboard sound simulator for macOS"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["Cesar Ferreira <cesar.manuel.ferreira@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/cesarferreira/clickclack"
+homepage = "https://github.com/cesarferreira/clickclack"
+readme = "README.md"
 
 [features]
 cargo-clippy = []

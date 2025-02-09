@@ -21,6 +21,20 @@ Ever wished your keyboard sounded as fancy as those $200 mechanical keyboards yo
 - macOS 10.15 or later (sorry Windows users, you'll have to stick to your rubber domes... for now)
 - Rust toolchain (if building from source, because we're fancy like that)
 
+### Installation
+
+```bash
+cargo install clickclack
+```
+
+## Usage
+
+Just run:
+```bash
+clickclack
+```
+
+
 ### Building from Source
 
 1. Clone this bad boy:
@@ -36,12 +50,6 @@ cargo build --release
 
 3. Find your shiny new toy at `target/release/clickclack`
 
-### Running
-
-Just double-click it or run:
-```bash
-./target/release/clickclack
-```
 
 Look for the keyboard icon in your menu bar - that's your new best friend!
 
