@@ -72,14 +72,6 @@ Look for the keyboard icon in your menu bar - that's your new best friend!
    - Set the decay (from "quick and snappy" to "echoes of eternity")
 3. Type away and feel like a keyboard warrior!
 
-## 🎨 Sound Science (for the Nerds)
-
-We've crafted these sounds using:
-- Precisely tuned frequencies (math!)
-- Harmonic overtones (more math!)
-- Just the right amount of noise (controlled chaos!)
-- Customizable decay (even more math!)
-
 ## 🔒 Privacy (Serious Business)
 
 ClickClack is like a good friend - it listens only when you want it to and keeps no secrets. It:
