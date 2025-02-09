@@ -4,14 +4,13 @@
 [![Crates.io Total Downloads](https://img.shields.io/crates/d/clickclack)]()
 
 # 🎹 ClickClack
-> Turn Your Boring Keyboard into a Symphony of Satisfaction!
+> Ever wished your keyboard sounded as fancy as those $200 mechanical keyboards your coworkers won't shut up about? Well, wish no more! ClickClack brings that sweet, sweet mechanical keyboard ASMR to your fingertips without breaking the bank! 
 
 <p align="center">
   <img src="assets/media/ss2.png" width="100%" />
 </p>
 
 
-Ever wished your keyboard sounded as fancy as those $200 mechanical keyboards your coworkers won't shut up about? Well, wish no more! ClickClack brings that sweet, sweet mechanical keyboard ASMR to your fingertips without breaking the bank! 
 
 ## ✨ What's This Magic?
 
