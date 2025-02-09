@@ -61,7 +61,7 @@ impl TrayIcon {
                 let state = crate::APP_STATE.lock();
                 state.enabled
             };
-            add_menu_item(menu, "Enable Sound", "toggle:", enabled, target);
+            add_menu_item(menu, "Enable Sound", "toggleSound", enabled, target);
             add_separator(menu);
 
             // Volume controls
@@ -71,10 +71,10 @@ impl TrayIcon {
             };
 
             add_menu_item(menu, "Volume", "", false, target);
-            for &(level, label) in VOLUME_LEVELS {
-                let checked = (level - current_volume).abs() < 0.01;
-                add_menu_item(menu, &format!("  {}", label), &format!("setVolume:{}", level), checked, target);
-            }
+            add_menu_item(menu, "  100%", "setVolume100", (current_volume - 1.0).abs() < 0.01, target);
+            add_menu_item(menu, "  75%", "setVolume75", (current_volume - 0.75).abs() < 0.01, target);
+            add_menu_item(menu, "  50%", "setVolume50", (current_volume - 0.5).abs() < 0.01, target);
+            add_menu_item(menu, "  25%", "setVolume25", (current_volume - 0.25).abs() < 0.01, target);
             add_separator(menu);
 
             // Keyboard profiles
@@ -84,25 +84,12 @@ impl TrayIcon {
             };
 
             add_menu_item(menu, "Keyboard Profile", "", false, target);
-            let profiles = fs::read_dir("assets/keyboards")?
-                .filter_map(|entry| {
-                    let entry = entry.ok()?;
-                    if entry.file_type().ok()?.is_dir() {
-                        entry.file_name().into_string().ok()
-                    } else {
-                        None
-                    }
-                })
-                .filter(|name| !name.starts_with('.'))
-                .collect::<Vec<_>>();
-
-            for profile in profiles {
-                let checked = profile == current_profile;
-                add_menu_item(menu, &format!("  {}", profile), &format!("setProfile:{}", profile), checked, target);
-            }
+            add_menu_item(menu, "  Kandas Woods", "setProfileKandas", current_profile == "Kandas-Woods-v1", target);
+            add_menu_item(menu, "  Nocfree Lite", "setProfileNocfree", current_profile == "Nocfree-Lite-v1", target);
+            add_menu_item(menu, "  Zoom65", "setProfileZoom", current_profile == "Zoom65-v1", target);
 
             add_separator(menu);
-            add_menu_item(menu, "Quit", "quit:", false, target);
+            add_menu_item(menu, "Quit", "quit", false, target);
 
             // Set the menu to the status item and retain the status item
             let _: () = msg_send![status_item, setMenu:menu];
@@ -130,12 +117,15 @@ impl Drop for TrayIcon {
 }
 
 unsafe fn create_menu_item(title: &str, action: &str, checked: bool, target: id) -> id {
+    info!("Creating menu item: '{}' with action: '{}'", title, action);
     let title = NSString::alloc(nil).init_str(title);
     
     // Convert the action string to a selector using runtime functions
     let selector = if action.is_empty() {
+        info!("Empty action, creating menu item without selector");
         None
     } else {
+        info!("Registering selector for action: {}", action);
         Some(Sel::register(action))
     };
     
@@ -144,6 +134,7 @@ unsafe fn create_menu_item(title: &str, action: &str, checked: bool, target: id)
     
     match selector {
         Some(sel) => {
+            info!("Initializing menu item with selector");
             let _: () = msg_send![item,
                 initWithTitle:title
                 action:sel
@@ -151,6 +142,7 @@ unsafe fn create_menu_item(title: &str, action: &str, checked: bool, target: id)
             let _: () = msg_send![item, setTarget:target];
         }
         None => {
+            info!("Initializing menu item without selector");
             let _: () = msg_send![item,
                 initWithTitle:title
                 action:nil
@@ -159,6 +151,7 @@ unsafe fn create_menu_item(title: &str, action: &str, checked: bool, target: id)
     }
     
     if checked {
+        info!("Setting menu item state to checked");
         let _: () = msg_send![item, setState: 1];
     }
     
@@ -179,103 +172,138 @@ unsafe fn register_menu_target_class() -> *const Class {
     let superclass = class!(NSObject);
     let mut decl = objc::declare::ClassDecl::new("MenuTarget", superclass).unwrap();
 
-    // Add instance variable to store menu
+    // Add instance variables to store menu and current action data
     decl.add_ivar::<id>("menu");
+    decl.add_ivar::<f32>("pending_volume");
+    decl.add_ivar::<id>("pending_profile");
 
-    extern "C" fn toggle(this: &Object, _: Sel, _cmd: Sel) {
-        let mut state = crate::APP_STATE.lock();
-        state.enabled = !state.enabled;
-        info!("Sound {}", if state.enabled { "enabled" } else { "disabled" });
-        if let Err(e) = state.save() {
-            error!("Failed to save configuration: {}", e);
-        }
+    extern "C" fn handle_action(_this: &Object, _sel: Sel) {
+        println!("Action received: {:?}", _sel);
         
-        // Update menu item state
-        unsafe {
-            if let Some(menu_item) = get_menu_item_for_action(this, "toggle:") {
-                let _: () = msg_send![menu_item, setState: if state.enabled { 1 } else { 0 }];
-            }
+        let sel_name = unsafe {
+            let name = objc::runtime::sel_getName(_sel);
+            std::ffi::CStr::from_ptr(name).to_string_lossy().to_string()
+        };
+        println!("Selector name: {}", sel_name);
+
+        match sel_name.as_str() {
+            "toggleSound" => {
+                println!("Toggle sound action detected");
+                let mut state = crate::APP_STATE.lock();
+                state.enabled = !state.enabled;
+                println!("Sound {}", if state.enabled { "enabled" } else { "disabled" });
+                if let Err(e) = state.save() {
+                    println!("Failed to save configuration: {}", e);
+                }
+                
+                unsafe {
+                    if let Some(menu_item) = get_menu_item_for_action(_this, "toggleSound") {
+                        println!("Found toggle menu item, updating state to {}", state.enabled);
+                        let _: () = msg_send![menu_item, setState: if state.enabled { 1 } else { 0 }];
+                    }
+                }
+            },
+            "setVolume25" => handle_volume(_this, 0.25),
+            "setVolume50" => handle_volume(_this, 0.5),
+            "setVolume75" => handle_volume(_this, 0.75),
+            "setVolume100" => handle_volume(_this, 1.0),
+            "setProfileKandas" => handle_profile(_this, "Kandas-Woods-v1"),
+            "setProfileNocfree" => handle_profile(_this, "Nocfree-Lite-v1"),
+            "setProfileZoom" => handle_profile(_this, "Zoom65-v1"),
+            "quit" => {
+                println!("Quit action detected");
+                std::process::exit(0);
+            },
+            _ => println!("Unknown action: {}", sel_name)
         }
     }
 
-    extern "C" fn set_volume(this: &Object, _: Sel, volume: f32) {
+    fn handle_volume(_this: &Object, volume: f32) {
+        println!("Set volume action called with value: {}", volume);
         let mut state = crate::APP_STATE.lock();
         state.volume = volume;
-        info!("Volume set to {}", volume);
+        println!("Volume set to {}", volume);
         if let Err(e) = state.save() {
-            error!("Failed to save configuration: {}", e);
+            println!("Failed to save configuration: {}", e);
         }
         
-        // Update menu item states
         unsafe {
-            // Uncheck all volume items first
-            for &(level, _) in VOLUME_LEVELS {
-                if let Some(menu_item) = get_menu_item_for_action(this, &format!("setVolume:{}", level)) {
+            // Uncheck all volume items
+            for name in &["setVolume25", "setVolume50", "setVolume75", "setVolume100"] {
+                if let Some(menu_item) = get_menu_item_for_action(_this, name) {
+                    println!("Unchecking volume {}", name);
                     let _: () = msg_send![menu_item, setState: 0];
                 }
             }
             
             // Check the selected volume
-            if let Some(menu_item) = get_menu_item_for_action(this, &format!("setVolume:{}", volume)) {
+            let action_name = match volume {
+                0.25 => "setVolume25",
+                0.50 => "setVolume50",
+                0.75 => "setVolume75",
+                1.0 => "setVolume100",
+                _ => return
+            };
+            
+            if let Some(menu_item) = get_menu_item_for_action(_this, action_name) {
+                println!("Checking volume {}", action_name);
                 let _: () = msg_send![menu_item, setState: 1];
             }
         }
     }
 
-    extern "C" fn set_profile(this: &Object, _: Sel, profile: id) {
+    fn handle_profile(_this: &Object, profile: &str) {
+        println!("Set profile action called with value: {}", profile);
+        let mut state = crate::APP_STATE.lock();
+        state.keyboard_profile = profile.to_string();
+        println!("Profile set to {}", profile);
+        if let Err(e) = state.save() {
+            println!("Failed to save configuration: {}", e);
+        }
+        
         unsafe {
-            let string_ref: id = msg_send![profile, description];
-            let bytes: *const u8 = msg_send![string_ref, UTF8String];
-            let len: usize = msg_send![string_ref, lengthOfBytesUsingEncoding:4];
-            let profile_string = std::str::from_utf8(std::slice::from_raw_parts(bytes, len))
-                .unwrap_or("")
-                .to_string();
-            
-            let mut state = crate::APP_STATE.lock();
-            
-            // Uncheck all profile items first
-            let profiles = fs::read_dir("assets/keyboards")
-                .unwrap_or_else(|_| panic!("Failed to read keyboards directory"))
-                .filter_map(|entry| entry.ok())
-                .filter_map(|entry| entry.file_name().into_string().ok())
-                .filter(|name| !name.starts_with('.'));
-                
-            for profile_name in profiles {
-                if let Some(menu_item) = get_menu_item_for_action(this, &format!("setProfile:{}", profile_name)) {
+            // Uncheck all profiles
+            for name in &["setProfileKandas", "setProfileNocfree", "setProfileZoom"] {
+                if let Some(menu_item) = get_menu_item_for_action(_this, name) {
+                    println!("Unchecking profile {}", name);
                     let _: () = msg_send![menu_item, setState: 0];
                 }
             }
             
             // Check the selected profile
-            if let Some(menu_item) = get_menu_item_for_action(this, &format!("setProfile:{}", profile_string)) {
-                let _: () = msg_send![menu_item, setState: 1];
-            }
+            let action_name = match profile {
+                "Kandas-Woods-v1" => "setProfileKandas",
+                "Nocfree-Lite-v1" => "setProfileNocfree",
+                "Zoom65-v1" => "setProfileZoom",
+                _ => return
+            };
             
-            state.keyboard_profile = profile_string.clone();
-            info!("Keyboard profile set to {}", profile_string);
-            if let Err(e) = state.save() {
-                error!("Failed to save configuration: {}", e);
+            if let Some(menu_item) = get_menu_item_for_action(_this, action_name) {
+                println!("Checking profile {}", action_name);
+                let _: () = msg_send![menu_item, setState: 1];
             }
         }
     }
 
-    extern "C" fn quit(this: &Object, _: Sel, _cmd: Sel) {
-        std::process::exit(0);
-    }
-
-    // Add method to set menu
-    extern "C" fn set_menu(this: &Object, _: Sel, menu: id) {
+    extern "C" fn set_menu(_this: &Object, _sel: Sel, menu: id) {
         unsafe {
-            let ptr = this as *const _ as *mut Object;
+            println!("Set menu called");
+            let ptr = _this as *const _ as *mut Object;
             (*ptr).set_ivar("menu", menu);
         }
     }
 
     unsafe {
-        decl.add_method(sel!(toggle:), toggle as extern "C" fn(&Object, Sel, Sel));
-        decl.add_method(sel!(setVolume:), set_volume as extern "C" fn(&Object, Sel, f32));
-        decl.add_method(sel!(setProfile:), set_profile as extern "C" fn(&Object, Sel, id));
-        decl.add_method(sel!(quit:), quit as extern "C" fn(&Object, Sel, Sel));
+        println!("Registering menu target class methods");
+        decl.add_method(sel!(toggleSound), handle_action as extern "C" fn(&Object, Sel));
+        decl.add_method(sel!(setVolume25), handle_action as extern "C" fn(&Object, Sel));
+        decl.add_method(sel!(setVolume50), handle_action as extern "C" fn(&Object, Sel));
+        decl.add_method(sel!(setVolume75), handle_action as extern "C" fn(&Object, Sel));
+        decl.add_method(sel!(setVolume100), handle_action as extern "C" fn(&Object, Sel));
+        decl.add_method(sel!(setProfileKandas), handle_action as extern "C" fn(&Object, Sel));
+        decl.add_method(sel!(setProfileNocfree), handle_action as extern "C" fn(&Object, Sel));
+        decl.add_method(sel!(setProfileZoom), handle_action as extern "C" fn(&Object, Sel));
+        decl.add_method(sel!(quit), handle_action as extern "C" fn(&Object, Sel));
         decl.add_method(sel!(setMenu:), set_menu as extern "C" fn(&Object, Sel, id));
     }
 
@@ -287,19 +315,23 @@ unsafe fn get_menu_item_for_action(target: &Object, action: &str) -> Option<id> 
     let ptr = target as *const _ as *mut Object;
     let menu: id = *(*ptr).get_ivar("menu");
     if menu == nil {
+        println!("Menu is nil when searching for action: {}", action);
         return None;
     }
     
     let count: usize = msg_send![menu, numberOfItems];
     let sel = Sel::register(action);
     
+    println!("Searching for menu item with action: {} among {} items", action, count);
     for i in 0..count {
         let item: id = msg_send![menu, itemAtIndex:i];
         let item_sel: Sel = msg_send![item, action];
         if item_sel == sel {
+            println!("Found menu item for action: {}", action);
             return Some(item);
         }
     }
     
+    println!("Could not find menu item for action: {}", action);
     None
 }
