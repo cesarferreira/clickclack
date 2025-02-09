@@ -1,26 +1,33 @@
 use anyhow::Result;
-use rdev::{listen, Event, EventType};
+use rdev::{listen, Event, EventType, Key};
 use std::sync::Arc;
 use log::{error, info};
+use std::collections::HashSet;
+use parking_lot::Mutex;
 
 use crate::audio::SoundEngine;
 
 pub struct KeyboardHandler {
     sound_engine: Arc<SoundEngine>,
+    pressed_keys: Arc<Mutex<HashSet<Key>>>,
 }
 
 impl KeyboardHandler {
     pub fn new(sound_engine: Arc<SoundEngine>) -> Result<Self> {
-        Ok(Self { sound_engine })
+        Ok(Self {
+            sound_engine,
+            pressed_keys: Arc::new(Mutex::new(HashSet::new())),
+        })
     }
 
     pub fn start(&self) -> Result<()> {
         let sound_engine = self.sound_engine.clone();
+        let pressed_keys = self.pressed_keys.clone();
         info!("Starting keyboard listener...");
         
         std::thread::spawn(move || {
             if let Err(error) = listen(move |event| {
-                Self::callback(event, &sound_engine);
+                Self::callback(event, &sound_engine, &pressed_keys);
             }) {
                 error!("Failed to listen for keyboard events: {:?}", error);
             }
@@ -29,27 +36,50 @@ impl KeyboardHandler {
         Ok(())
     }
 
-    fn callback(event: Event, sound_engine: &SoundEngine) {
-        let (is_press, key) = match event.event_type {
+    fn callback(event: Event, sound_engine: &SoundEngine, pressed_keys: &Arc<Mutex<HashSet<Key>>>) {
+        match event.event_type {
             EventType::KeyPress(key) => {
-                info!("Key pressed: {:?}", key);
-                (true, Some(key))
+                // Only play sound if the key wasn't already pressed
+                let should_play = {
+                    let mut keys = pressed_keys.lock();
+                    if !keys.contains(&key) {
+                        keys.insert(key);
+                        true
+                    } else {
+                        false
+                    }
+                };
+
+                if should_play {
+                    info!("Key pressed: {:?}", key);
+                    let enabled = {
+                        let app_state = crate::APP_STATE.lock();
+                        app_state.enabled
+                    };
+                    if enabled {
+                        sound_engine.play_sound(Some(key), true);
+                    }
+                }
             }
             EventType::KeyRelease(key) => {
-                info!("Key released: {:?}", key);
-                (false, Some(key))
-            }
-            _ => return,
-        };
+                // Only play sound if we had registered this key as pressed
+                let should_play = {
+                    let mut keys = pressed_keys.lock();
+                    keys.remove(&key)
+                };
 
-        // Only hold the lock long enough to check if enabled
-        let enabled = {
-            let app_state = crate::APP_STATE.lock();
-            app_state.enabled
-        };
-        
-        if enabled {
-            sound_engine.play_sound(key, is_press);
+                if should_play {
+                    info!("Key released: {:?}", key);
+                    let enabled = {
+                        let app_state = crate::APP_STATE.lock();
+                        app_state.enabled
+                    };
+                    if enabled {
+                        sound_engine.play_sound(Some(key), false);
+                    }
+                }
+            }
+            _ => {}
         }
     }
 }
@@ -87,6 +117,7 @@ mod tests {
     #[test]
     fn test_callback_enabled() {
         let sound_engine = Arc::new(SoundEngine::new().unwrap());
+        let pressed_keys = Arc::new(Mutex::new(HashSet::new()));
         
         // Ensure app is enabled
         {
@@ -94,18 +125,26 @@ mod tests {
             app_state.enabled = true;
         }
 
-        // Test callback with different keys (press and release)
-        KeyboardHandler::callback(create_test_event(rdev::Key::KeyA, true), &sound_engine);
-        KeyboardHandler::callback(create_test_event(rdev::Key::KeyA, false), &sound_engine);
-        KeyboardHandler::callback(create_test_event(rdev::Key::Space, true), &sound_engine);
-        KeyboardHandler::callback(create_test_event(rdev::Key::Space, false), &sound_engine);
-        KeyboardHandler::callback(create_test_event(rdev::Key::Return, true), &sound_engine);
-        KeyboardHandler::callback(create_test_event(rdev::Key::Return, false), &sound_engine);
+        // Test normal key press and release sequence
+        KeyboardHandler::callback(create_test_event(rdev::Key::KeyA, true), &sound_engine, &pressed_keys);
+        KeyboardHandler::callback(create_test_event(rdev::Key::KeyA, false), &sound_engine, &pressed_keys);
+
+        // Test holding a key (second press should not trigger sound)
+        KeyboardHandler::callback(create_test_event(rdev::Key::Space, true), &sound_engine, &pressed_keys);
+        KeyboardHandler::callback(create_test_event(rdev::Key::Space, true), &sound_engine, &pressed_keys); // Should not play
+        KeyboardHandler::callback(create_test_event(rdev::Key::Space, false), &sound_engine, &pressed_keys);
+
+        // Test multiple keys
+        KeyboardHandler::callback(create_test_event(rdev::Key::Return, true), &sound_engine, &pressed_keys);
+        KeyboardHandler::callback(create_test_event(rdev::Key::KeyB, true), &sound_engine, &pressed_keys);
+        KeyboardHandler::callback(create_test_event(rdev::Key::Return, false), &sound_engine, &pressed_keys);
+        KeyboardHandler::callback(create_test_event(rdev::Key::KeyB, false), &sound_engine, &pressed_keys);
     }
 
     #[test]
     fn test_callback_disabled() {
         let sound_engine = Arc::new(SoundEngine::new().unwrap());
+        let pressed_keys = Arc::new(Mutex::new(HashSet::new()));
         
         // Disable app
         {
@@ -114,8 +153,8 @@ mod tests {
         }
 
         // Test callback while disabled
-        KeyboardHandler::callback(create_test_event(rdev::Key::KeyA, true), &sound_engine);
-        KeyboardHandler::callback(create_test_event(rdev::Key::KeyA, false), &sound_engine);
+        KeyboardHandler::callback(create_test_event(rdev::Key::KeyA, true), &sound_engine, &pressed_keys);
+        KeyboardHandler::callback(create_test_event(rdev::Key::KeyA, false), &sound_engine, &pressed_keys);
     }
 
     #[test]
@@ -129,9 +168,10 @@ mod tests {
         // Test concurrent access from multiple threads
         let threads: Vec<_> = (0..3).map(|_| {
             let engine = sound_engine.clone();
+            let pressed_keys = handler.pressed_keys.clone();
             thread::spawn(move || {
-                KeyboardHandler::callback(create_test_event(rdev::Key::KeyA, true), &engine);
-                KeyboardHandler::callback(create_test_event(rdev::Key::KeyA, false), &engine);
+                KeyboardHandler::callback(create_test_event(rdev::Key::KeyA, true), &engine, &pressed_keys);
+                KeyboardHandler::callback(create_test_event(rdev::Key::KeyA, false), &engine, &pressed_keys);
             })
         }).collect();
 
