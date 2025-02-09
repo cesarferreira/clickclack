@@ -6,7 +6,9 @@ use objc::runtime::{Object, Class};
 use objc::{msg_send, sel, sel_impl, class};
 use objc::runtime::Sel;
 use std::fs;
-use log::info;
+use std::path::PathBuf;
+use log::{info, debug, error};
+use std::io::Cursor;
 
 const STATUS_ITEM_LENGTH: f64 = -1.0;
 
@@ -80,8 +82,9 @@ impl TrayIcon {
             add_menu_item(menu, "Keyboard Profile", "", false, target);
             
             // Read all keyboard profiles from the directory
-            let profiles = fs::read_dir("assets/keyboards")
-                .unwrap_or_else(|_| panic!("Failed to read keyboards directory"))
+            let keyboards_dir = get_assets_dir().join("keyboards");
+            let profiles = fs::read_dir(&keyboards_dir)
+                .unwrap_or_else(|_| panic!("Failed to read keyboards directory at {:?}", keyboards_dir))
                 .filter_map(|entry| entry.ok())
                 .filter_map(|entry| entry.file_name().into_string().ok())
                 .filter(|name| !name.starts_with('.') && name != "test-profile")
@@ -310,8 +313,9 @@ unsafe fn register_menu_target_class() -> *const Class {
         decl.add_method(sel!(setVolume100), handle_action as extern "C" fn(&Object, Sel));
         
         // Register all profile methods
-        let profiles = fs::read_dir("assets/keyboards")
-            .unwrap_or_else(|_| panic!("Failed to read keyboards directory"))
+        let keyboards_dir = get_assets_dir().join("keyboards");
+        let profiles = fs::read_dir(&keyboards_dir)
+            .unwrap_or_else(|_| panic!("Failed to read keyboards directory at {:?}", keyboards_dir))
             .filter_map(|entry| entry.ok())
             .filter_map(|entry| entry.file_name().into_string().ok())
             .filter(|name| !name.starts_with('.') && name != "test-profile");
@@ -352,4 +356,67 @@ unsafe fn get_menu_item_for_action(target: &Object, action: &str) -> Option<id> 
     
     println!("Could not find menu item for action: {}", action);
     None
+}
+
+fn ensure_assets_exist() -> std::io::Result<()> {
+    let config_dir = dirs::config_dir()
+        .unwrap_or_else(|| PathBuf::from("~/.config"))
+        .join("clickclack");
+    
+    let keyboards_dir = config_dir.join("keyboards");
+    
+    if !keyboards_dir.exists() {
+        info!("Keyboards directory not found, downloading assets...");
+        fs::create_dir_all(&config_dir)?;
+        
+        // Download the zip file
+        let url = "https://github.com/cesarferreira/clickclack/raw/refs/heads/main/assets/keyboards.zip";
+        let response = ureq::get(url)
+            .call()
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        
+        let mut bytes: Vec<u8> = Vec::new();
+        response.into_reader()
+            .read_to_end(&mut bytes)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        
+        // Extract the zip file
+        let cursor = Cursor::new(bytes);
+        let mut archive = zip::ZipArchive::new(cursor)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        
+        for i in 0..archive.len() {
+            let mut file = archive.by_index(i)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+            
+            let outpath = config_dir.join(file.name());
+            
+            if file.name().ends_with('/') {
+                fs::create_dir_all(&outpath)?;
+            } else {
+                if let Some(p) = outpath.parent() {
+                    fs::create_dir_all(p)?;
+                }
+                let mut outfile = fs::File::create(&outpath)?;
+                std::io::copy(&mut file, &mut outfile)?;
+            }
+        }
+        
+        info!("Assets downloaded and extracted successfully");
+    }
+    
+    Ok(())
+}
+
+fn get_assets_dir() -> PathBuf {
+    let config_dir = dirs::config_dir()
+        .unwrap_or_else(|| PathBuf::from("~/.config"))
+        .join("clickclack");
+    
+    // Ensure assets exist (download if needed)
+    if let Err(e) = ensure_assets_exist() {
+        error!("Failed to ensure assets exist: {}", e);
+    }
+    
+    config_dir
 }

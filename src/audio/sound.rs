@@ -1,11 +1,18 @@
 use anyhow::Result;
-use log::{error, info};
+use log::{error, info, debug};
 use rodio::{Decoder, OutputStream, Sink};
 use rdev::Key;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
 use std::sync::mpsc;
+use dirs;
+
+fn get_assets_dir() -> PathBuf {
+    dirs::config_dir()
+        .unwrap_or_else(|| PathBuf::from("~/.config"))
+        .join("clickclack")
+}
 
 pub struct SoundEngine {
     _stream: OutputStream,
@@ -110,7 +117,7 @@ impl SoundEngine {
 
         info!("Key sound: {}", sound_file);
 
-        let path = PathBuf::from("assets")
+        let path = get_assets_dir()
             .join("keyboards")
             .join(event.profile)
             .join(&sound_file);
