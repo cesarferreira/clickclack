@@ -21,6 +21,7 @@ static APP_STATE: Lazy<Arc<Mutex<AppState>>> = Lazy::new(|| {
     Arc::new(Mutex::new(AppState {
         enabled: true,
         volume: 1.0,
+        keyboard_profile: String::from("Kandas-Woods-v1"),
         frequency: 500.0,
         decay: 30.0,
     }))
@@ -29,6 +30,7 @@ static APP_STATE: Lazy<Arc<Mutex<AppState>>> = Lazy::new(|| {
 pub struct AppState {
     enabled: bool,
     volume: f32,
+    keyboard_profile: String,
     frequency: f32,
     decay: f32,
 }
