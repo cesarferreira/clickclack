@@ -1,7 +1,7 @@
 use anyhow::Result;
 use rdev::{listen, Event, EventType};
 use std::sync::Arc;
-use log::error;
+use log::{error, info};
 
 use crate::audio::SoundEngine;
 
@@ -29,7 +29,8 @@ impl KeyboardHandler {
     }
 
     fn callback(event: Event, sound_engine: &SoundEngine) {
-        if let EventType::KeyPress(_) = event.event_type {
+        if let EventType::KeyPress(key) = event.event_type {
+            info!("Clicked on key {:?}", key);
             let app_state = crate::APP_STATE.lock();
             if app_state.enabled {
                 sound_engine.play_click();

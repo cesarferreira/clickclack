@@ -41,7 +41,9 @@ fn main() -> Result<()> {
         app.setActivationPolicy_(NSApplicationActivationPolicyAccessory);
     }
 
-    env_logger::init();
+    // Initialize logging with info level by default
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+        .init();
     info!("Starting ClickClack...");
 
     // Initialize the sound system
