@@ -54,8 +54,8 @@ impl Config {
 }
 
 fn get_config_path() -> Result<PathBuf> {
-    let proj_dirs = ProjectDirs::from("com", "clickclack", "clickclack")
-        .ok_or_else(|| anyhow::anyhow!("Failed to get project directories"))?;
-    
-    Ok(proj_dirs.config_dir().join("clickclack.toml"))
+    let home = std::env::var("HOME").expect("Failed to get HOME directory");
+    let config_path = format!("{}/.config/clickclack/clickclack.toml", home);
+    println!("Config path: {}", config_path);
+    Ok(PathBuf::from(config_path))
 } 

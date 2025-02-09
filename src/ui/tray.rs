@@ -84,9 +84,19 @@ impl TrayIcon {
             };
 
             add_menu_item(menu, "Keyboard Profile", "", false, target);
-            add_menu_item(menu, "  Kandas Woods", "setProfileKandas", current_profile == "Kandas-Woods-v1", target);
-            add_menu_item(menu, "  Nocfree Lite", "setProfileNocfree", current_profile == "Nocfree-Lite-v1", target);
-            add_menu_item(menu, "  Zoom65", "setProfileZoom", current_profile == "Zoom65-v1", target);
+            
+            // Read all keyboard profiles from the directory
+            let profiles = fs::read_dir("assets/keyboards")
+                .unwrap_or_else(|_| panic!("Failed to read keyboards directory"))
+                .filter_map(|entry| entry.ok())
+                .filter_map(|entry| entry.file_name().into_string().ok())
+                .filter(|name| !name.starts_with('.') && name != "test-profile")
+                .collect::<Vec<_>>();
+
+            for profile in &profiles {
+                let display_name = profile.replace("-v1", "").replace('-', " ");
+                add_menu_item(menu, &format!("  {}", display_name), &format!("setProfile_{}", profile), current_profile == *profile, target);
+            }
 
             add_separator(menu);
             add_menu_item(menu, "Quit", "quit", false, target);
@@ -207,9 +217,10 @@ unsafe fn register_menu_target_class() -> *const Class {
             "setVolume50" => handle_volume(_this, 0.5),
             "setVolume75" => handle_volume(_this, 0.75),
             "setVolume100" => handle_volume(_this, 1.0),
-            "setProfileKandas" => handle_profile(_this, "Kandas-Woods-v1"),
-            "setProfileNocfree" => handle_profile(_this, "Nocfree-Lite-v1"),
-            "setProfileZoom" => handle_profile(_this, "Zoom65-v1"),
+            sel_name if sel_name.starts_with("setProfile_") => {
+                let profile = sel_name.strip_prefix("setProfile_").unwrap();
+                handle_profile(_this, profile);
+            },
             "quit" => {
                 println!("Quit action detected");
                 std::process::exit(0);
@@ -262,25 +273,28 @@ unsafe fn register_menu_target_class() -> *const Class {
         }
         
         unsafe {
-            // Uncheck all profiles
-            for name in &["setProfileKandas", "setProfileNocfree", "setProfileZoom"] {
-                if let Some(menu_item) = get_menu_item_for_action(_this, name) {
-                    println!("Unchecking profile {}", name);
-                    let _: () = msg_send![menu_item, setState: 0];
+            // Get all profile menu items and uncheck them
+            let ptr = _this as *const _ as *mut Object;
+            let menu: id = *(*ptr).get_ivar("menu");
+            let count: usize = msg_send![menu, numberOfItems];
+            
+            // Uncheck all profile items
+            for i in 0..count {
+                let item: id = msg_send![menu, itemAtIndex:i];
+                let action: Sel = msg_send![item, action];
+                let action_name = objc::runtime::sel_getName(action);
+                if let Ok(name) = std::ffi::CStr::from_ptr(action_name).to_str() {
+                    if name.starts_with("setProfile_") {
+                        let _: () = msg_send![item, setState:0];
+                    }
                 }
             }
             
-            // Check the selected profile
-            let action_name = match profile {
-                "Kandas-Woods-v1" => "setProfileKandas",
-                "Nocfree-Lite-v1" => "setProfileNocfree",
-                "Zoom65-v1" => "setProfileZoom",
-                _ => return
-            };
-            
-            if let Some(menu_item) = get_menu_item_for_action(_this, action_name) {
+            // Check the current profile
+            let action_name = format!("setProfile_{}", profile);
+            if let Some(menu_item) = get_menu_item_for_action(_this, &action_name) {
                 println!("Checking profile {}", action_name);
-                let _: () = msg_send![menu_item, setState: 1];
+                let _: () = msg_send![menu_item, setState:1];
             }
         }
     }
@@ -300,9 +314,19 @@ unsafe fn register_menu_target_class() -> *const Class {
         decl.add_method(sel!(setVolume50), handle_action as extern "C" fn(&Object, Sel));
         decl.add_method(sel!(setVolume75), handle_action as extern "C" fn(&Object, Sel));
         decl.add_method(sel!(setVolume100), handle_action as extern "C" fn(&Object, Sel));
-        decl.add_method(sel!(setProfileKandas), handle_action as extern "C" fn(&Object, Sel));
-        decl.add_method(sel!(setProfileNocfree), handle_action as extern "C" fn(&Object, Sel));
-        decl.add_method(sel!(setProfileZoom), handle_action as extern "C" fn(&Object, Sel));
+        
+        // Register all profile methods
+        let profiles = fs::read_dir("assets/keyboards")
+            .unwrap_or_else(|_| panic!("Failed to read keyboards directory"))
+            .filter_map(|entry| entry.ok())
+            .filter_map(|entry| entry.file_name().into_string().ok())
+            .filter(|name| !name.starts_with('.') && name != "test-profile");
+
+        for profile in profiles {
+            let selector = format!("setProfile_{}", profile);
+            decl.add_method(Sel::register(&selector), handle_action as extern "C" fn(&Object, Sel));
+        }
+        
         decl.add_method(sel!(quit), handle_action as extern "C" fn(&Object, Sel));
         decl.add_method(sel!(setMenu:), set_menu as extern "C" fn(&Object, Sel, id));
     }
