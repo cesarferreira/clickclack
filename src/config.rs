@@ -25,6 +25,9 @@ impl Config {
     pub fn load() -> Result<Self> {
         let config_path = get_config_path()?;
         
+        // Create keyboards directory during first load
+        create_keyboards_directory()?;
+        
         if !config_path.exists() {
             let config = Config::default();
             config.save()?;
@@ -57,4 +60,17 @@ fn get_config_path() -> Result<PathBuf> {
     let config_path = format!("{}/.config/clickclack/clickclack.toml", home);
     println!("Config path: {}", config_path);
     Ok(PathBuf::from(config_path))
+}
+
+// Add this new function
+fn create_keyboards_directory() -> Result<PathBuf> {
+    let home = std::env::var("HOME").expect("Failed to get HOME directory");
+    let keyboards_path = PathBuf::from(format!("{}/.config/clickclack/keyboards", home));
+    
+    if !keyboards_path.exists() {
+        fs::create_dir_all(&keyboards_path)?;
+        log::info!("Created keyboards directory at {:?}", keyboards_path);
+    }
+    
+    Ok(keyboards_path)
 } 

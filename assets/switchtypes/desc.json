@@ -1,0 +1,18 @@
+{
+    "switches": {
+      "Alpaca Linear": "alpaca",
+      "Gateron Black Ink V2": "blackink",
+      "Alps Blue": "bluealps",
+      "Kailh BOX Navy": "boxnavy", 
+      "IBM Buckling Spring": "buckling",
+      "NovelKeys Cream": "cream",
+      "Holy Panda": "holypanda",
+      "Cherry MX Black": "mxblack",
+      "Cherry MX Blue": "mxblue",
+      "Cherry MX Brown": "mxbrown",
+      "Gateron Red Ink V2": "redink",
+      "Topre": "topre",
+      "Turquoise Tealios": "turquoise"
+    }
+  }
+  
