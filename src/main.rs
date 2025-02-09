@@ -8,6 +8,7 @@ use cocoa::foundation::NSAutoreleasePool;
 mod audio;
 mod input;
 mod ui;
+mod config;
 
 use anyhow::Result;
 use log::info;
@@ -16,23 +17,9 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 use std::io::Write;
 
-static APP_STATE: Lazy<Arc<Mutex<AppState>>> = Lazy::new(|| {
-    Arc::new(Mutex::new(AppState {
-        enabled: true,
-        volume: 1.0,
-        keyboard_profile: String::from("Kandas-Woods-v1"),
-        frequency: 500.0,
-        decay: 30.0,
-    }))
+static APP_STATE: Lazy<Arc<Mutex<config::Config>>> = Lazy::new(|| {
+    Arc::new(Mutex::new(config::Config::load().unwrap_or_default()))
 });
-
-pub struct AppState {
-    enabled: bool,
-    volume: f32,
-    keyboard_profile: String,
-    frequency: f32,
-    decay: f32,
-}
 
 fn main() -> Result<()> {
     // Initialize logging with info level by default
