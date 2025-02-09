@@ -8,12 +8,6 @@ use objc::runtime::Sel;
 use std::fs;
 use log::info;
 
-const VOLUME_LEVELS: &[(f32, &str)] = &[
-    (1.0, "100%"),
-    (0.75, "75%"),
-    (0.5, "50%"),
-    (0.25, "25%"),
-];
 const STATUS_ITEM_LENGTH: f64 = -1.0;
 
 pub struct TrayIcon {

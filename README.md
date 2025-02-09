@@ -1,4 +1,18 @@
-# 🎹 ClickClack
+<div align="center">
+  <h1>🎹 ClickClack</h1>
+  <p align="center" dir="auto">Turn Your Boring Keyboard into a Symphony of Satisfaction!</p>
+  
+  <a href="https://crates.io/crates/clickclack"><img alt="Crates.io Version" src="https://img.shields.io/crates/v/clickclack"></a>
+  <a href="https://github.com/cesarferreira/clickclack/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
+  <img alt="Crates.io Total Downloads" src="https://img.shields.io/crates/d/clickclack">
+
+</div>
+
+<p align="center">
+  <img src="assets/media/ss2.png" width="100%" />
+</p>
+
+
 > Turn Your Boring Keyboard into a Symphony of Satisfaction!
 
 Ever wished your keyboard sounded as fancy as those $200 mechanical keyboards your coworkers won't shut up about? Well, wish no more! ClickClack brings that sweet, sweet mechanical keyboard ASMR to your fingertips without breaking the bank! 

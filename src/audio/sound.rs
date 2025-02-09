@@ -29,7 +29,7 @@ impl SoundEngine {
         let (stream, stream_handle) = OutputStream::try_default()?;
         let (sender, receiver) = mpsc::channel();
 
-        // Spawn a dedicated thread for audio playback
+        // Spawn a thread to handle sound events
         let stream_handle_clone = stream_handle.clone();
         std::thread::spawn(move || {
             while let Ok(event) = receiver.recv() {
