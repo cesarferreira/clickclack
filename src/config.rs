@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use directories::ProjectDirs;
+use log;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -44,7 +45,10 @@ impl Config {
         }
 
         let toml = toml::to_string_pretty(self)?;
-        fs::write(config_path, toml)?;
+        fs::write(config_path.clone(), toml)?;
+        
+        // Log the path where we saved the config
+        log::info!("Configuration saved to {:?}", config_path);
         Ok(())
     }
 }

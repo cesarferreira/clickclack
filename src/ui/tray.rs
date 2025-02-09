@@ -53,6 +53,9 @@ impl TrayIcon {
             let _: () = msg_send![menu, setAutoenablesItems: NO];
             let _: () = msg_send![menu, retain];
 
+            // Store menu in target
+            let _: () = msg_send![target, setMenu:menu];
+
             // Enable/Disable toggle
             let enabled = {
                 let state = crate::APP_STATE.lock();
@@ -176,12 +179,22 @@ unsafe fn register_menu_target_class() -> *const Class {
     let superclass = class!(NSObject);
     let mut decl = objc::declare::ClassDecl::new("MenuTarget", superclass).unwrap();
 
+    // Add instance variable to store menu
+    decl.add_ivar::<id>("menu");
+
     extern "C" fn toggle(this: &Object, _: Sel, _cmd: Sel) {
         let mut state = crate::APP_STATE.lock();
         state.enabled = !state.enabled;
         info!("Sound {}", if state.enabled { "enabled" } else { "disabled" });
         if let Err(e) = state.save() {
             error!("Failed to save configuration: {}", e);
+        }
+        
+        // Update menu item state
+        unsafe {
+            if let Some(menu_item) = get_menu_item_for_action(this, "toggle:") {
+                let _: () = msg_send![menu_item, setState: if state.enabled { 1 } else { 0 }];
+            }
         }
     }
 
@@ -191,6 +204,21 @@ unsafe fn register_menu_target_class() -> *const Class {
         info!("Volume set to {}", volume);
         if let Err(e) = state.save() {
             error!("Failed to save configuration: {}", e);
+        }
+        
+        // Update menu item states
+        unsafe {
+            // Uncheck all volume items first
+            for &(level, _) in VOLUME_LEVELS {
+                if let Some(menu_item) = get_menu_item_for_action(this, &format!("setVolume:{}", level)) {
+                    let _: () = msg_send![menu_item, setState: 0];
+                }
+            }
+            
+            // Check the selected volume
+            if let Some(menu_item) = get_menu_item_for_action(this, &format!("setVolume:{}", volume)) {
+                let _: () = msg_send![menu_item, setState: 1];
+            }
         }
     }
 
@@ -204,6 +232,25 @@ unsafe fn register_menu_target_class() -> *const Class {
                 .to_string();
             
             let mut state = crate::APP_STATE.lock();
+            
+            // Uncheck all profile items first
+            let profiles = fs::read_dir("assets/keyboards")
+                .unwrap_or_else(|_| panic!("Failed to read keyboards directory"))
+                .filter_map(|entry| entry.ok())
+                .filter_map(|entry| entry.file_name().into_string().ok())
+                .filter(|name| !name.starts_with('.'));
+                
+            for profile_name in profiles {
+                if let Some(menu_item) = get_menu_item_for_action(this, &format!("setProfile:{}", profile_name)) {
+                    let _: () = msg_send![menu_item, setState: 0];
+                }
+            }
+            
+            // Check the selected profile
+            if let Some(menu_item) = get_menu_item_for_action(this, &format!("setProfile:{}", profile_string)) {
+                let _: () = msg_send![menu_item, setState: 1];
+            }
+            
             state.keyboard_profile = profile_string.clone();
             info!("Keyboard profile set to {}", profile_string);
             if let Err(e) = state.save() {
@@ -216,12 +263,43 @@ unsafe fn register_menu_target_class() -> *const Class {
         std::process::exit(0);
     }
 
+    // Add method to set menu
+    extern "C" fn set_menu(this: &Object, _: Sel, menu: id) {
+        unsafe {
+            let ptr = this as *const _ as *mut Object;
+            (*ptr).set_ivar("menu", menu);
+        }
+    }
+
     unsafe {
         decl.add_method(sel!(toggle:), toggle as extern "C" fn(&Object, Sel, Sel));
         decl.add_method(sel!(setVolume:), set_volume as extern "C" fn(&Object, Sel, f32));
         decl.add_method(sel!(setProfile:), set_profile as extern "C" fn(&Object, Sel, id));
         decl.add_method(sel!(quit:), quit as extern "C" fn(&Object, Sel, Sel));
+        decl.add_method(sel!(setMenu:), set_menu as extern "C" fn(&Object, Sel, id));
     }
 
     decl.register()
+}
+
+/// Helper function to get a menu item for a specific action
+unsafe fn get_menu_item_for_action(target: &Object, action: &str) -> Option<id> {
+    let ptr = target as *const _ as *mut Object;
+    let menu: id = *(*ptr).get_ivar("menu");
+    if menu == nil {
+        return None;
+    }
+    
+    let count: usize = msg_send![menu, numberOfItems];
+    let sel = Sel::register(action);
+    
+    for i in 0..count {
+        let item: id = msg_send![menu, itemAtIndex:i];
+        let item_sel: Sel = msg_send![item, action];
+        if item_sel == sel {
+            return Some(item);
+        }
+    }
+    
+    None
 }
