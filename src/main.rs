@@ -65,16 +65,9 @@ fn main() -> Result<()> {
     let keyboard_handler = input::KeyboardHandler::new(sound_engine.clone())?;
     keyboard_handler.start()?;
 
-    // Create and run the tray icon
+    // Create and run the tray icon - this will start the event loop
     let tray = ui::TrayIcon::new()?;
-    tray.run()?;
-
-    // Keep the main thread running
-    #[cfg(target_os = "macos")]
-    unsafe {
-        let app = NSApplication::sharedApplication(nil);
-        app.run();
-    }
+    tray.run()?;  // This will block and keep the application running
 
     Ok(())
 }
