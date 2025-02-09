@@ -35,13 +35,6 @@ pub struct AppState {
 }
 
 fn main() -> Result<()> {
-    #[cfg(target_os = "macos")]
-    unsafe {
-        let _pool = NSAutoreleasePool::new(nil);
-        let app = NSApplication::sharedApplication(nil);
-        app.setActivationPolicy_(NSApplicationActivationPolicyAccessory);
-    }
-
     // Initialize logging with info level by default
     env_logger::Builder::from_env(env_logger::Env::default()
         .filter_or("RUST_LOG", "info")
@@ -57,17 +50,37 @@ fn main() -> Result<()> {
         .init();
     info!("Starting ClickClack...");
 
-    // Initialize the sound system
-    let sound_engine = audio::SoundEngine::new()?;
-    let sound_engine = Arc::new(sound_engine);
+    #[cfg(target_os = "macos")]
+    unsafe {
+        let _pool = NSAutoreleasePool::new(nil);
+        let app = NSApplication::sharedApplication(nil);
+        app.setActivationPolicy_(NSApplicationActivationPolicyAccessory);
+    }
 
-    // Start keyboard listener
+    // Initialize the sound system
+    let sound_engine = Arc::new(audio::SoundEngine::new()?);
+    info!("Sound engine initialized");
+
+    // Start keyboard listener in a separate thread
     let keyboard_handler = input::KeyboardHandler::new(sound_engine.clone())?;
     keyboard_handler.start()?;
+    info!("Keyboard handler started");
 
-    // Create and run the tray icon - this will start the event loop
-    let tray = ui::TrayIcon::new()?;
-    tray.run()?;  // This will block and keep the application running
+    // Create the tray icon
+    let _tray = ui::TrayIcon::new()?;
+    info!("Tray icon created");
+    
+    // Run the main event loop
+    #[cfg(target_os = "macos")]
+    unsafe {
+        let app = NSApplication::sharedApplication(nil);
+        app.run();
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    loop {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
 
     Ok(())
 }

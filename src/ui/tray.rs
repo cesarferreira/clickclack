@@ -6,7 +6,6 @@ use tray_icon::{
 use std::sync::Arc;
 use std::thread;
 use log::info;
-use tao::event_loop::{EventLoop, ControlFlow};
 
 const TRAY_ICON: &[u8] = include_bytes!("../../assets/icon.png");
 
@@ -14,12 +13,10 @@ pub struct TrayIcon {
     _tray_icon: tray_icon::TrayIcon,
     _menu: Arc<Menu>,
     _items: Vec<(MenuItem, Option<f32>)>,
-    event_loop: EventLoop<()>,
 }
 
 impl TrayIcon {
     pub fn new() -> Result<Self> {
-        let event_loop = EventLoop::new();
         let menu = Menu::new();
         let mut items = Vec::new();
         
@@ -97,15 +94,7 @@ impl TrayIcon {
             _tray_icon: tray_icon,
             _menu: menu,
             _items: items,
-            event_loop,
         })
-    }
-
-    pub fn run(self) -> Result<()> {
-        self.event_loop.run(move |_event, _, control_flow| {
-            *control_flow = ControlFlow::Wait;
-        });
-        Ok(())
     }
 }
 
