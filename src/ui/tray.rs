@@ -9,6 +9,7 @@ use std::fs;
 use std::path::PathBuf;
 use log::{info, debug, error};
 use std::io::{self, Read, Cursor};
+use serde_json;
 
 const STATUS_ITEM_LENGTH: f64 = -1.0;
 
@@ -73,26 +74,30 @@ impl TrayIcon {
             add_menu_item(menu, "  25%", "setVolume25", (current_volume - 0.25).abs() < 0.01, target);
             add_separator(menu);
 
-            // Keyboard profiles
-            let current_profile = {
+            // Switch types
+            let current_switch = {
                 let state = crate::APP_STATE.lock();
-                state.keyboard_profile.clone()
+                state.switch_type.clone()
             };
 
-            add_menu_item(menu, "Keyboard Profile", "", false, target);
+            add_menu_item(menu, "Switch Type", "", false, target);
             
-            // Read all keyboard profiles from the directory
-            let keyboards_dir = get_assets_dir().join("keyboards");
-            let profiles = fs::read_dir(&keyboards_dir)
-                .unwrap_or_else(|_| panic!("Failed to read keyboards directory at {:?}", keyboards_dir))
-                .filter_map(|entry| entry.ok())
-                .filter_map(|entry| entry.file_name().into_string().ok())
-                .filter(|name| !name.starts_with('.') && name != "test-profile")
-                .collect::<Vec<_>>();
-
-            for profile in &profiles {
-                let display_name = profile.replace("-v1", "").replace('-', " ");
-                add_menu_item(menu, &format!("  {}", display_name), &format!("setProfile_{}", profile), current_profile == *profile, target);
+            // Read switch types from desc.json
+            let config_dir = dirs::config_dir()
+                .unwrap_or_else(|| PathBuf::from("~/.config"))
+                .join("clickclack");
+            let desc_path = config_dir.join("switchtypes").join("desc.json");
+            
+            if let Ok(contents) = fs::read_to_string(&desc_path) {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&contents) {
+                    if let Some(switches) = json.get("switches") {
+                        if let Some(obj) = switches.as_object() {
+                            for (display_name, folder_name) in obj {
+                                add_menu_item(menu, &format!("  {}", display_name), &format!("setSwitch_{}", folder_name.as_str().unwrap()), current_switch == folder_name.as_str().unwrap(), target);
+                            }
+                        }
+                    }
+                }
             }
 
             add_separator(menu);
@@ -214,9 +219,9 @@ unsafe fn register_menu_target_class() -> *const Class {
             "setVolume50" => handle_volume(_this, 0.5),
             "setVolume75" => handle_volume(_this, 0.75),
             "setVolume100" => handle_volume(_this, 1.0),
-            sel_name if sel_name.starts_with("setProfile_") => {
-                let profile = sel_name.strip_prefix("setProfile_").unwrap();
-                handle_profile(_this, profile);
+            sel_name if sel_name.starts_with("setSwitch_") => {
+                let switch_type = sel_name.strip_prefix("setSwitch_").unwrap();
+                handle_switch_type(_this, switch_type);
             },
             "quit" => {
                 println!("Quit action detected");
@@ -260,37 +265,37 @@ unsafe fn register_menu_target_class() -> *const Class {
         }
     }
 
-    fn handle_profile(_this: &Object, profile: &str) {
-        println!("Set profile action called with value: {}", profile);
+    fn handle_switch_type(_this: &Object, switch_type: &str) {
+        println!("Set switch type action called with value: {}", switch_type);
         let mut state = crate::APP_STATE.lock();
-        state.keyboard_profile = profile.to_string();
-        println!("Profile set to {}", profile);
+        state.switch_type = switch_type.to_string();
+        println!("Switch type set to {}", switch_type);
         if let Err(e) = state.save() {
             println!("Failed to save configuration: {}", e);
         }
         
         unsafe {
-            // Get all profile menu items and uncheck them
+            // Get all switch type menu items and uncheck them
             let ptr = _this as *const _ as *mut Object;
             let menu: id = *(*ptr).get_ivar("menu");
             let count: usize = msg_send![menu, numberOfItems];
             
-            // Uncheck all profile items
+            // Uncheck all switch type items
             for i in 0..count {
                 let item: id = msg_send![menu, itemAtIndex:i];
                 let action: Sel = msg_send![item, action];
                 let action_name = objc::runtime::sel_getName(action);
                 if let Ok(name) = std::ffi::CStr::from_ptr(action_name).to_str() {
-                    if name.starts_with("setProfile_") {
+                    if name.starts_with("setSwitch_") {
                         let _: () = msg_send![item, setState:0];
                     }
                 }
             }
             
-            // Check the current profile
-            let action_name = format!("setProfile_{}", profile);
+            // Check the current switch type
+            let action_name = format!("setSwitch_{}", switch_type);
             if let Some(menu_item) = get_menu_item_for_action(_this, &action_name) {
-                println!("Checking profile {}", action_name);
+                println!("Checking switch type {}", action_name);
                 let _: () = msg_send![menu_item, setState:1];
             }
         }
@@ -312,17 +317,23 @@ unsafe fn register_menu_target_class() -> *const Class {
         decl.add_method(sel!(setVolume75), handle_action as extern "C" fn(&Object, Sel));
         decl.add_method(sel!(setVolume100), handle_action as extern "C" fn(&Object, Sel));
         
-        // Register all profile methods
-        let keyboards_dir = get_assets_dir().join("keyboards");
-        let profiles = fs::read_dir(&keyboards_dir)
-            .unwrap_or_else(|_| panic!("Failed to read keyboards directory at {:?}", keyboards_dir))
-            .filter_map(|entry| entry.ok())
-            .filter_map(|entry| entry.file_name().into_string().ok())
-            .filter(|name| !name.starts_with('.') && name != "test-profile");
-
-        for profile in profiles {
-            let selector = format!("setProfile_{}", profile);
-            decl.add_method(Sel::register(&selector), handle_action as extern "C" fn(&Object, Sel));
+        // Register all switch type methods
+        let config_dir = dirs::config_dir()
+            .unwrap_or_else(|| PathBuf::from("~/.config"))
+            .join("clickclack");
+        let desc_path = config_dir.join("switchtypes").join("desc.json");
+        
+        if let Ok(contents) = fs::read_to_string(&desc_path) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&contents) {
+                if let Some(switches) = json.get("switches") {
+                    if let Some(obj) = switches.as_object() {
+                        for (_, folder_name) in obj {
+                            let selector = format!("setSwitch_{}", folder_name.as_str().unwrap());
+                            decl.add_method(Sel::register(&selector), handle_action as extern "C" fn(&Object, Sel));
+                        }
+                    }
+                }
+            }
         }
         
         decl.add_method(sel!(quit), handle_action as extern "C" fn(&Object, Sel));
@@ -366,17 +377,17 @@ pub fn ensure_assets_exist() -> std::io::Result<()> {
         .join("clickclack");
     debug!("Config directory path: {:?}", config_dir);
     
-    let keyboards_dir = config_dir.join("keyboards");
-    debug!("Checking for keyboards directory at: {:?}", keyboards_dir);
-    debug!("Keyboards directory exists: {}", keyboards_dir.exists());
+    let switchtypes_dir = config_dir.join("switchtypes");
+    debug!("Checking for switchtypes directory at: {:?}", switchtypes_dir);
+    debug!("Switchtypes directory exists: {}", switchtypes_dir.exists());
     
-    if !keyboards_dir.exists() {
-        info!("Keyboards directory not found, downloading assets...");
+    if !switchtypes_dir.exists() {
+        info!("Switchtypes directory not found, downloading assets...");
         fs::create_dir_all(&config_dir)?;
         debug!("Created config directory at: {:?}", config_dir);
         
         // Download the zip file
-        let url = "https://github.com/cesarferreira/clickclack/raw/refs/heads/main/assets/keyboards.zip";
+        let url = "https://github.com/cesarferreira/clickclack/raw/refs/heads/main/assets/switchtypes.zip";
         info!("Downloading assets from: {}", url);
         
         let response = match ureq::get(url).call() {
@@ -431,16 +442,16 @@ pub fn ensure_assets_exist() -> std::io::Result<()> {
         
         info!("Assets downloaded and extracted successfully");
     } else {
-        debug!("Keyboards directory already exists at: {:?}", keyboards_dir);
+        debug!("Switchtypes directory already exists at: {:?}", switchtypes_dir);
         
         // Check if the directory has content
-        let entries = fs::read_dir(&keyboards_dir)?;
+        let entries = fs::read_dir(&switchtypes_dir)?;
         let count = entries.count();
-        debug!("Found {} entries in keyboards directory", count);
+        debug!("Found {} entries in switchtypes directory", count);
         
         if count == 0 {
-            info!("Keyboards directory is empty, removing and recreating...");
-            fs::remove_dir(&keyboards_dir)?;
+            info!("Switchtypes directory is empty, removing and recreating...");
+            fs::remove_dir(&switchtypes_dir)?;
             return ensure_assets_exist();
         }
     }
