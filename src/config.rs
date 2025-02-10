@@ -8,7 +8,7 @@ use log;
 pub struct Config {
     pub enabled: bool,
     pub volume: f32,
-    pub keyboard_profile: String,
+    pub switch_type: String,
 }
 
 impl Default for Config {
@@ -16,7 +16,7 @@ impl Default for Config {
         Self {
             enabled: true,
             volume: 1.0,
-            keyboard_profile: String::from("Kandas-Woods-v1"),
+            switch_type: String::from("mxblue"),
         }
     }
 }
@@ -25,8 +25,8 @@ impl Config {
     pub fn load() -> Result<Self> {
         let config_path = get_config_path()?;
         
-        // Create keyboards directory during first load
-        create_keyboards_directory()?;
+        // Create switchtypes directory during first load
+        create_switchtypes_directory()?;
         
         if !config_path.exists() {
             let config = Config::default();
@@ -57,20 +57,18 @@ impl Config {
 
 fn get_config_path() -> Result<PathBuf> {
     let home = std::env::var("HOME").expect("Failed to get HOME directory");
-    let config_path = format!("{}/.config/clickclack/clickclack.toml", home);
-    println!("Config path: {}", config_path);
-    Ok(PathBuf::from(config_path))
+    Ok(PathBuf::from(home).join(".config/clickclack/config.toml"))
 }
 
-// Add this new function
-fn create_keyboards_directory() -> Result<PathBuf> {
-    let home = std::env::var("HOME").expect("Failed to get HOME directory");
-    let keyboards_path = PathBuf::from(format!("{}/.config/clickclack/keyboards", home));
+fn create_switchtypes_directory() -> Result<()> {
+    let config_dir = dirs::config_dir()
+        .unwrap_or_else(|| PathBuf::from("~/.config"))
+        .join("clickclack")
+        .join("switchtypes");
     
-    if !keyboards_path.exists() {
-        fs::create_dir_all(&keyboards_path)?;
-        log::info!("Created keyboards directory at {:?}", keyboards_path);
+    if !config_dir.exists() {
+        fs::create_dir_all(&config_dir)?;
     }
     
-    Ok(keyboards_path)
+    Ok(())
 } 

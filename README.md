@@ -7,9 +7,8 @@
 > Ever wished your keyboard sounded as fancy as those $200 mechanical keyboards your coworkers won't shut up about? Well, wish no more! ClickClack brings that sweet, sweet mechanical keyboard ASMR to your fingertips without breaking the bank! 
 
 <p align="center">
-  <img src="assets/media/ss2.png" width="100%" />
+  <img src="assets/media/ss.png" width="100%" />
 </p>
-
 
 
 ## ✨ What's This Magic?
@@ -43,7 +42,6 @@ Just run:
 clickclack
 ```
 
-
 ### Building from Source
 
 1. Clone this bad boy:
@@ -59,8 +57,19 @@ cargo build --release
 
 3. Find your shiny new toy at `target/release/clickclack`
 
-
 Look for the keyboard icon in your menu bar - that's your new best friend!
+
+## ⚙️ Configuration
+
+Your settings are automatically saved in `~/.config/clickclack/config.toml`. Here's an example of what it looks like:
+
+```toml
+enabled = true
+volume = 0.25
+switch_type = "bluealps"
+```
+
+The configuration is automatically updated when you change settings through the menu bar interface. You can also manually edit this file if you prefer.
 
 ## 🎮 How to Use This Beast
 
@@ -71,6 +80,24 @@ Look for the keyboard icon in your menu bar - that's your new best friend!
    - Pick your frequency (from "sophisticated professional" to "mad typist")
    - Set the decay (from "quick and snappy" to "echoes of eternity")
 3. Type away and feel like a keyboard warrior!
+
+## 🎹 Supported Switches
+
+Choose your perfect sound from our curated collection of premium mechanical switches:
+
+- **Alpaca Linear** - Smooth linear switches known for their buttery typing experience
+- **Gateron Black Ink V2** - Premium linear switches with a deep, satisfying sound profile
+- **Alps Blue** - Vintage clicky switches from Alps Electric with a unique sharp tactility
+- **Kailh BOX Navy** - Heavy clicky switches with a thick, crisp sound signature
+- **IBM Buckling Spring** - Classic switches from Model M keyboards, the grandfather of mechanical keyboards
+- **NovelKeys Cream** - Self-lubricating linear switches with a unique POM housing
+- **Holy Panda** - Popular tactile switches born from a BSUN/Drop collaboration, known for their rounded tactile bump
+- **Cherry MX Black** - Classic linear switches, the industry standard for decades
+- **Cherry MX Blue** - Standard clicky switches with that iconic mechanical keyboard sound
+- **Cherry MX Brown** - Light tactile switches perfect for typing and gaming
+- **Gateron Red Ink V2** - Lighter version of Black Inks with a smooth, premium feel
+- **Topre** - Electro-capacitive rubber dome switches with a unique "thock" sound
+- **Turquoise Tealios** - Premium linear switches with a smooth, refined feel
 
 ## 🔒 Privacy (Serious Business)
 

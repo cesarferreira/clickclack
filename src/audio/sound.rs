@@ -24,7 +24,7 @@ pub struct SoundEvent {
     key: Option<Key>,
     is_press: bool,
     volume: f32,
-    profile: String,
+    switch_type: String,
 }
 
 // Implement Send and Sync explicitly since we control the thread safety
@@ -62,64 +62,64 @@ impl SoundEngine {
             key,
             is_press,
             volume: app_state.volume,
-            profile: app_state.keyboard_profile.clone(),
+            switch_type: app_state.switch_type.clone(),
         };
 
         // Send event to audio thread
         let _ = self.sender.send(event);
     }
 
-    fn get_sound_number_for_key(key: &Key) -> u8 {
-        // Map specific keys to consistent sound numbers
+    fn get_sound_number_for_key(key: &Key) -> String {
+        // Map specific keys to row numbers for GENERIC_R0-R4 sounds
         match key {
-            // Map letter keys
-            Key::KeyA | Key::KeyQ | Key::KeyZ | Key::Num1 => 1,
-            Key::KeyS | Key::KeyW | Key::KeyX | Key::Num2 => 2,
-            Key::KeyD | Key::KeyE | Key::KeyC | Key::Num3 => 3,
-            Key::KeyF | Key::KeyR | Key::KeyV | Key::Num4 => 4,
-            Key::KeyG | Key::KeyT | Key::KeyB | Key::Num5 => 5,
-            Key::KeyH | Key::KeyY | Key::KeyN | Key::Num6 => 6,
-            Key::KeyJ | Key::KeyU | Key::KeyM | Key::Num7 => 7,
+            // Row 0 - Number keys
+            Key::Num1 | Key::Num2 | Key::Num3 | Key::Num4 | Key::Num5 |
+            Key::Num6 | Key::Num7 | Key::Num8 | Key::Num9 | Key::Num0 |
+            Key::Minus | Key::Equal => "GENERIC_R0",
             
-            // Map modifier keys to deeper sounds
-            Key::ShiftLeft | Key::ShiftRight | Key::CapsLock => 1,
-            Key::ControlLeft | Key::ControlRight | Key::Alt => 2,
-            Key::MetaLeft | Key::MetaRight => 3,
+            // Row 1 - Top letter row
+            Key::KeyQ | Key::KeyW | Key::KeyE | Key::KeyR | Key::KeyT |
+            Key::KeyY | Key::KeyU | Key::KeyI | Key::KeyO | Key::KeyP |
+            Key::LeftBracket | Key::RightBracket => "GENERIC_R1",
             
-            // Map remaining keys based on their pattern
-            Key::KeyK | Key::KeyI | Key::Comma => 1,
-            Key::KeyL | Key::KeyO | Key::Dot => 2,
-            Key::SemiColon | Key::KeyP | Key::Slash => 3,
-            Key::Quote | Key::LeftBracket | Key::Num8 => 4,
-            Key::BackSlash | Key::RightBracket | Key::Num9 => 5,
-            Key::Tab | Key::Num0 | Key::Equal => 6,
-            _ => 7  // Any other keys
-        }
+            // Row 2 - Home row
+            Key::KeyA | Key::KeyS | Key::KeyD | Key::KeyF | Key::KeyG |
+            Key::KeyH | Key::KeyJ | Key::KeyK | Key::KeyL |
+            Key::SemiColon | Key::Quote | Key::BackSlash => "GENERIC_R2",
+            
+            // Row 3 - Bottom letter row
+            Key::KeyZ | Key::KeyX | Key::KeyC | Key::KeyV | Key::KeyB |
+            Key::KeyN | Key::KeyM | Key::Comma | Key::Dot | Key::Slash => "GENERIC_R3",
+            
+            // Row 4 - Space row and modifiers
+            Key::Space | Key::Alt | Key::MetaLeft | Key::MetaRight |
+            Key::ControlLeft | Key::ControlRight | Key::ShiftLeft |
+            Key::ShiftRight => "GENERIC_R4",
+            
+            // Default to R2 (home row) for any other keys
+            _ => "GENERIC_R2"
+        }.to_string()
     }
 
     fn handle_sound_event(event: SoundEvent, stream_handle: &rodio::OutputStreamHandle) {
         // Determine which sound file to play based on the key and event type
         let sound_file = match (event.key, event.is_press) {
-            (Some(Key::Return), true) => "down_enter.mp3".to_string(),
-            (Some(Key::Return), false) => "up_enter.mp3".to_string(),
-            (Some(Key::Space), true) => "down_space.mp3".to_string(),
-            (Some(Key::Space), false) => "up_space.mp3".to_string(),
             (Some(key), true) => {
-                let num = Self::get_sound_number_for_key(&key);
-                format!("down{}.mp3", num)
+                format!("press/{}.mp3", Self::get_sound_number_for_key(&key))
             }
-            (Some(key), false) => {
-                let num = Self::get_sound_number_for_key(&key);
-                format!("up{}.mp3", num)
+            (Some(_), false) => {
+                "release/GENERIC.mp3".to_string()
             }
-            (None, _) => "down1.mp3".to_string(),
+            (None, _) => "press/GENERIC_R2.mp3".to_string(),
         };
 
         info!("Key sound: {}", sound_file);
 
-        let path = get_assets_dir()
-            .join("keyboards")
-            .join(event.profile)
+        let path = dirs::config_dir()
+            .unwrap_or_else(|| PathBuf::from("~/.config"))
+            .join("clickclack")
+            .join("switchtypes")
+            .join(&event.switch_type)
             .join(&sound_file);
 
         // Create a new sink for this sound
@@ -148,7 +148,7 @@ impl SoundEngine {
             key: None,
             is_press: true,
             volume: app_state.volume,
-            profile: app_state.keyboard_profile.clone(),
+            switch_type: app_state.switch_type.clone(),
         };
         self.sender.send(event).is_ok()
     }
