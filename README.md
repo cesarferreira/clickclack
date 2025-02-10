@@ -10,29 +10,32 @@
   <img src="assets/media/ss.png" width="100%" />
 </p>
 
-
-## ✨ What's This Magic?
-
-- 🎵 Real-time mechanical keyboard sounds that'll make your fingers dance
-- 🎚️ Sound tweaks that would make an audio engineer jealous:
-  - Volume control (from "library whisper" to "wake the neighbors")
-  - Frequency adjustment (from "gentle butterfly" to "angry typewriter")
-  - Decay rate (from "quick tap" to "dramatic echo")
-- 🪶 Lightweight menu bar app that sits quietly in the corner (until you start typing!)
-- ⚡️ Lightning-fast response time (because nobody likes delayed gratification)
-- 🔒 Privacy-focused (we don't care what you're typing, we just make it sound awesome)
-
-## 🚀 Getting Started
-
-### What You'll Need
-
+## ⚙️ Installation
 - macOS 10.15 or later (sorry Windows users, you'll have to stick to your rubber domes... for now)
-- Rust toolchain (if building from source, because we're fancy like that)
-
-### Installation
 
 ```bash
 cargo install clickclack
+```
+
+### Build From Source
+
+See: [Build From Source](#%EF%B8%8F-build-from-source).
+
+## 🎥 Demo
+
+The video shows an example of what it sounds like (unmute).
+
+https://github.com/user-attachments/assets/060fd77e-19e6-40e4-84b6-46dbd116acd0
+
+
+## ⚙️ Configuration
+
+Your settings are automatically saved in `~/.config/clickclack/config.toml`. Here's an example of what it looks like:
+
+```toml
+enabled = true
+volume = 0.25
+switch_type = "bluealps"
 ```
 
 ## Usage
@@ -42,7 +45,7 @@ Just run:
 clickclack
 ```
 
-### Building from Source
+## 🛠️ Build From Source
 
 1. Clone this bad boy:
 ```bash
@@ -58,28 +61,6 @@ cargo build --release
 3. Find your shiny new toy at `target/release/clickclack`
 
 Look for the keyboard icon in your menu bar - that's your new best friend!
-
-## ⚙️ Configuration
-
-Your settings are automatically saved in `~/.config/clickclack/config.toml`. Here's an example of what it looks like:
-
-```toml
-enabled = true
-volume = 0.25
-switch_type = "bluealps"
-```
-
-The configuration is automatically updated when you change settings through the menu bar interface. You can also manually edit this file if you prefer.
-
-## 🎮 How to Use This Beast
-
-1. Click the keyboard icon (it doesn't bite)
-2. Choose your destiny:
-   - Toggle sounds on/off (for when you need to be sneaky)
-   - Adjust volume (from "I can hear myself think" to "MAXIMUM CLICKY")
-   - Pick your frequency (from "sophisticated professional" to "mad typist")
-   - Set the decay (from "quick and snappy" to "echoes of eternity")
-3. Type away and feel like a keyboard warrior!
 
 ## 🎹 Supported Switches
 
@@ -98,6 +79,18 @@ Choose your perfect sound from our curated collection of premium mechanical swit
 - **Gateron Red Ink V2** - Lighter version of Black Inks with a smooth, premium feel
 - **Topre** - Electro-capacitive rubber dome switches with a unique "thock" sound
 - **Turquoise Tealios** - Premium linear switches with a smooth, refined feel
+
+## ✨ What's This Magic?
+
+- 🎵 Real-time mechanical keyboard sounds that'll make your fingers dance
+- 🎚️ Sound tweaks that would make an audio engineer jealous:
+  - Volume control (from "library whisper" to "wake the neighbors")
+  - Frequency adjustment (from "gentle butterfly" to "angry typewriter")
+  - Decay rate (from "quick tap" to "dramatic echo")
+- 🪶 Lightweight menu bar app that sits quietly in the corner (until you start typing!)
+- ⚡️ Lightning-fast response time (because nobody likes delayed gratification)
+- 🔒 Privacy-focused (we don't care what you're typing, we just make it sound awesome)
+
 
 ## 🔒 Privacy (Serious Business)
 
