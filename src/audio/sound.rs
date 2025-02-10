@@ -107,8 +107,8 @@ impl SoundEngine {
             (Some(key), true) => {
                 format!("press/{}.mp3", Self::get_sound_number_for_key(&key))
             }
-            (Some(key), false) => {
-                format!("release/{}.mp3", Self::get_sound_number_for_key(&key))
+            (Some(_), false) => {
+                "release/GENERIC.mp3".to_string()
             }
             (None, _) => "press/GENERIC_R2.mp3".to_string(),
         };
