@@ -11,7 +11,7 @@
 </p>
 
 ## ⚙️ Installation
-- macOS 10.15 or later (sorry Windows users, you'll have to stick to your rubber domes... for now)
+macOS 10.15 or later (sorry Windows users, you'll have to stick to your rubber domes... for now)
 
 ```bash
 cargo install clickclack
