@@ -1,6 +1,6 @@
 [package]
 name = "clickclack"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "A mechanical keyboard sound simulator for macOS"
 authors = ["Cesar Ferreira <cesar.manuel.ferreira@gmail.com>"]
@@ -8,11 +8,9 @@ license = "MIT"
 repository = "https://github.com/cesarferreira/clickclack"
 homepage = "https://github.com/cesarferreira/clickclack"
 readme = "README.md"
-build = "build.rs"
 include = [
     "src/**/*",
     "Cargo.toml",
-    "build.rs",
     "assets/**/*",
     "README.md",
     "LICENSE"
