@@ -35,7 +35,7 @@ Your settings are automatically saved in `~/.config/clickclack/config.toml`. Her
 ```toml
 enabled = true
 volume = 0.25
-switch_type = "bluealps"
+switch_type = "alpaca"
 ```
 
 ## Usage
