@@ -11,7 +11,7 @@
 </p>
 
 ## ⚙️ Installation
-- macOS 10.15 or later (sorry Windows users, you'll have to stick to your rubber domes... for now)
+macOS 10.15 or later (sorry Windows users, you'll have to stick to your rubber domes... for now)
 
 ```bash
 cargo install clickclack
@@ -44,6 +44,23 @@ Just run:
 ```bash
 clickclack
 ```
+
+### Service Management
+
+ClickClack can be run as a system service that starts automatically when you log in. The following commands are available:
+
+```bash
+# Start the ClickClack service
+clickclack --start-service
+
+# Stop the ClickClack service
+clickclack --stop-service
+
+# Restart the ClickClack service
+clickclack --restart-service
+```
+
+The service will automatically start at login and run in the background. You can still access all settings through the menu bar icon.
 
 ## 🛠️ Build From Source
 

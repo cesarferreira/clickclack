@@ -377,6 +377,18 @@ pub fn ensure_assets_exist() -> std::io::Result<()> {
         .join("clickclack");
     debug!("Config directory path: {:?}", config_dir);
     
+    // Copy icon file if it doesn't exist
+    let icon_path = config_dir.join("icon.png");
+    if !icon_path.exists() {
+        if let Some(exe_dir) = std::env::current_exe()?.parent() {
+            let source_icon = exe_dir.join("assets/icon.png");
+            if source_icon.exists() {
+                fs::copy(source_icon, &icon_path)?;
+                debug!("Copied icon file to: {:?}", icon_path);
+            }
+        }
+    }
+    
     let switchtypes_dir = config_dir.join("switchtypes");
     debug!("Checking for switchtypes directory at: {:?}", switchtypes_dir);
     debug!("Switchtypes directory exists: {}", switchtypes_dir.exists());

@@ -9,6 +9,7 @@ mod audio;
 mod input;
 mod ui;
 mod config;
+mod service;
 
 use anyhow::Result;
 use log::{info, error};
@@ -16,10 +17,27 @@ use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use std::sync::Arc;
 use std::io::Write;
+use clap::Parser;
 
 static APP_STATE: Lazy<Arc<Mutex<config::Config>>> = Lazy::new(|| {
     Arc::new(Mutex::new(config::Config::load().unwrap_or_default()))
 });
+
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct Cli {
+    /// Start the ClickClack service
+    #[arg(long)]
+    start_service: bool,
+
+    /// Stop the ClickClack service
+    #[arg(long)]
+    stop_service: bool,
+
+    /// Restart the ClickClack service
+    #[arg(long)]
+    restart_service: bool,
+}
 
 fn main() -> Result<()> {
     // Initialize logging with debug level
@@ -31,6 +49,31 @@ fn main() -> Result<()> {
         .init();
     info!("Starting ClickClack...");
 
+    // Parse command line arguments
+    let cli = Cli::parse();
+
+    // Handle service commands if present
+    if cli.start_service || cli.stop_service || cli.restart_service {
+        let service_manager = service::ServiceManager::new()?;
+        
+        if cli.start_service {
+            service_manager.start_service()?;
+            println!("ClickClack service started successfully");
+            return Ok(());
+        }
+        if cli.stop_service {
+            service_manager.stop_service()?;
+            println!("ClickClack service stopped successfully");
+            return Ok(());
+        }
+        if cli.restart_service {
+            service_manager.restart_service()?;
+            println!("ClickClack service restarted successfully");
+            return Ok(());
+        }
+    }
+
+    // Regular application startup
     #[cfg(target_os = "macos")]
     unsafe {
         let _pool = NSAutoreleasePool::new(nil);
