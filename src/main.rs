@@ -17,7 +17,7 @@ use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use std::sync::Arc;
 use std::io::Write;
-use clap::{Parser, Subcommand};
+use clap::Parser;
 
 static APP_STATE: Lazy<Arc<Mutex<config::Config>>> = Lazy::new(|| {
     Arc::new(Mutex::new(config::Config::load().unwrap_or_default()))
@@ -26,18 +26,17 @@ static APP_STATE: Lazy<Arc<Mutex<config::Config>>> = Lazy::new(|| {
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
-    #[command(subcommand)]
-    command: Option<Commands>,
-}
-
-#[derive(Subcommand)]
-enum Commands {
     /// Start the ClickClack service
-    Start,
+    #[arg(long)]
+    start_service: bool,
+
     /// Stop the ClickClack service
-    Stop,
+    #[arg(long)]
+    stop_service: bool,
+
     /// Restart the ClickClack service
-    Restart,
+    #[arg(long)]
+    restart_service: bool,
 }
 
 fn main() -> Result<()> {
@@ -54,24 +53,23 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     // Handle service commands if present
-    if let Some(command) = cli.command {
+    if cli.start_service || cli.stop_service || cli.restart_service {
         let service_manager = service::ServiceManager::new()?;
-        match command {
-            Commands::Start => {
-                service_manager.start_service()?;
-                println!("ClickClack service started successfully");
-                return Ok(());
-            }
-            Commands::Stop => {
-                service_manager.stop_service()?;
-                println!("ClickClack service stopped successfully");
-                return Ok(());
-            }
-            Commands::Restart => {
-                service_manager.restart_service()?;
-                println!("ClickClack service restarted successfully");
-                return Ok(());
-            }
+        
+        if cli.start_service {
+            service_manager.start_service()?;
+            println!("ClickClack service started successfully");
+            return Ok(());
+        }
+        if cli.stop_service {
+            service_manager.stop_service()?;
+            println!("ClickClack service stopped successfully");
+            return Ok(());
+        }
+        if cli.restart_service {
+            service_manager.restart_service()?;
+            println!("ClickClack service restarted successfully");
+            return Ok(());
         }
     }
 

@@ -51,13 +51,13 @@ ClickClack can be run as a system service that starts automatically when you log
 
 ```bash
 # Start the ClickClack service
-clickclack start
+clickclack --start-service
 
 # Stop the ClickClack service
-clickclack stop
+clickclack --stop-service
 
 # Restart the ClickClack service
-clickclack restart
+clickclack --restart-service
 ```
 
 The service will automatically start at login and run in the background. You can still access all settings through the menu bar icon.
