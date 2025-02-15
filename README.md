@@ -44,7 +44,7 @@ Just run:
 ```bash
 clickclack
 ```
-<!--
+
 ### Service Management
 
 ClickClack can be run as a system service that starts automatically when you log in. The following commands are available:
@@ -59,7 +59,7 @@ clickclack --stop-service
 # Restart the ClickClack service
 clickclack --restart-service
 ```
--->
+
 The service will automatically start at login and run in the background. You can still access all settings through the menu bar icon.
 
 ## 🛠️ Build From Source
